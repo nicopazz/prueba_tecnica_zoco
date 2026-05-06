@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Usaremos PostgreSQL
+  url      = env("DATABASE_URL")
+}
+
+model Venue {
+  id             String   @id @default(cuid())
+  originalName   String   
+  normalizedName String?  
+  location       String   
+  category       String?  
+  source         String   
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  
+  @@unique([normalizedName, location])
+}
