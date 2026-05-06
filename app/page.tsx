@@ -1,13 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import VenueRow from "./components/VenueRow"; // Importamos nuestro nuevo componente
 
-// Instanciamos Prisma para leer los datos
 const prisma = new PrismaClient();
-
-// Forzamos a Next.js a no cachear esta página, para ver siempre los datos frescos
-export const dynamic = "force-dynamic"; 
+export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  // Obtenemos todos los lugares de la base de datos, ordenados por los más recientes
   const venues = await prisma.venue.findMany({
     orderBy: { createdAt: "desc" },
   });
@@ -41,32 +38,9 @@ export default async function Dashboard() {
                   </td>
                 </tr>
               ) : (
+                // Usamos nuestro componente Cliente para renderizar cada fila
                 venues.map((venue) => (
-                  <tr key={venue.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${venue.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {venue.isActive ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{venue.normalizedName}</div>
-                      <div className="text-xs text-gray-500">Original: {venue.originalName}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded border border-gray-300">
-                        {venue.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {venue.location}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <button className="text-indigo-600 hover:text-indigo-900 mx-2">Editar</button>
-                      <button className="text-red-600 hover:text-red-900 mx-2">
-                        {venue.isActive ? "Desactivar" : "Activar"}
-                      </button>
-                    </td>
-                  </tr>
+                  <VenueRow key={venue.id} venue={venue} />
                 ))
               )}
             </tbody>
