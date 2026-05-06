@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Usaremos PostgreSQL
+  provider = "postgresql" 
   url      = env("DATABASE_URL")
 }
 
@@ -13,7 +13,8 @@ model Venue {
   normalizedName String?  
   location       String   
   category       String?  
-  source         String   
+  source         String 
+  confidence     Int?  
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
