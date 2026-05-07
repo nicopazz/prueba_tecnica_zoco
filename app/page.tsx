@@ -29,7 +29,7 @@ export default async function Dashboard() {
         </div>
 
         {/* Tabla de locales */}
-        <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+        <div className="bg-white shadow-md rounded-lg overflow-x-auto border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200">
             
             {/* Cabecera de la tabla */}
