@@ -2,20 +2,29 @@ import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Fuerza ejecución en entorno Node.js
 export const runtime = "nodejs";
 
+// Email de contacto requerido por Overpass API
 const contact = process.env.OVERPASS_CONTACT || "soporte@miapp.com";
+
+// API Key de Gemini
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
+// Cliente de Prisma para PostgreSQL
 const prisma = new PrismaClient();
+
+// Inicialización del cliente de Gemini
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
+// Tipado de elementos recibidos desde Overpass
 type OSMElement = {
   tags?: Record<string, string>;
   lat: number;
   lon: number;
 };
 
+// Estructura esperada luego del procesamiento con IA
 type ProcessedVenue = {
   originalName: string;
   normalizedName: string;
@@ -27,6 +36,7 @@ type ProcessedVenue = {
 export async function GET() {
   console.log("Iniciando sincronización con Overpass API...");
 
+  // Consulta Overpass para bares y pubs en Tucumán
   const query = `
     [out:json][timeout:25];
     (
@@ -37,19 +47,29 @@ export async function GET() {
   `;
 
   try {
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "User-Agent": `MiApp/1.0 (${contact})`,
-        "Accept": "*/*",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
-      body: new URLSearchParams({ data: query }).toString(),
-      cache: "no-store",
-    });
+    // Request hacia Overpass API
+    const response = await fetch(
+      "https://overpass-api.de/api/interpreter",
+      {
+        method: "POST",
+        headers: {
+          "User-Agent": `MiApp/1.0 (${contact})`,
+          Accept: "*/*",
+          "Content-Type":
+            "application/x-www-form-urlencoded; charset=UTF-8",
+        },
+
+        body: new URLSearchParams({
+          data: query,
+        }).toString(),
+
+        cache: "no-store",
+      }
+    );
 
     const text = await response.text();
 
+    // Manejo de errores de Overpass
     if (!response.ok) {
       console.error("Overpass no OK:", response.status, text);
 
@@ -66,18 +86,23 @@ export async function GET() {
 
     const data = JSON.parse(text);
 
+    // Limpieza inicial de datos provenientes de OSM
     const rawVenues = (data.elements || [])
       .filter((el: OSMElement) => el.tags && el.tags.name)
       .map((el: OSMElement) => ({
         originalName: el.tags!.name,
+
+        // Usa dirección si existe, sino coordenadas
         location: el.tags!["addr:street"]
           ? `${el.tags!["addr:street"]} ${
               el.tags!["addr:housenumber"] || ""
             }`.trim()
           : `Lat: ${el.lat}, Lon: ${el.lon}`,
+
         source: "Overpass API",
       }));
 
+    // Si no se encontraron resultados
     if (rawVenues.length === 0) {
       return NextResponse.json({
         success: true,
@@ -89,6 +114,7 @@ export async function GET() {
       `Enviando ${rawVenues.length} lugares a Gemini para limpieza...`
     );
 
+    // Prompt utilizado para limpieza y normalización con IA
     const prompt = `
 Eres un experto en limpieza de datos. Recibirás una lista de bares en formato JSON.
 Devuelve un JSON estricto con la clave "venues", que sea un array de objetos.
@@ -105,25 +131,32 @@ Datos crudos: ${JSON.stringify(rawVenues)}
     let processedVenues: ProcessedVenue[] = [];
 
     try {
+      // Modelo Gemini utilizado
       const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
+
         generationConfig: {
           responseMimeType: "application/json",
         },
       });
 
+      // Generación de contenido con IA
       const aiResponse = await model.generateContent(prompt);
 
       let aiContent = "";
 
       try {
+        // Extrae el texto de la respuesta
         aiContent = await aiResponse.response.text();
       } catch {
         aiContent = JSON.stringify(aiResponse.response || "");
       }
 
       try {
-        const parsed = JSON.parse(aiContent || '{"venues":[]}');
+        // Parseo seguro del JSON generado por Gemini
+        const parsed = JSON.parse(
+          aiContent || '{"venues":[]}'
+        );
 
         processedVenues = Array.isArray(parsed.venues)
           ? parsed.venues
@@ -142,8 +175,11 @@ Datos crudos: ${JSON.stringify(rawVenues)}
       processedVenues = [];
     }
 
+    // Fallback si Gemini falla o devuelve datos inválidos
     if (!processedVenues || processedVenues.length === 0) {
-      console.log("Usando fallback: normalización básica sin IA.");
+      console.log(
+        "Usando fallback: normalización básica sin IA."
+      );
 
       processedVenues = rawVenues.map(
         (v: {
@@ -152,6 +188,8 @@ Datos crudos: ${JSON.stringify(rawVenues)}
           source: string;
         }) => ({
           originalName: v.originalName,
+
+          // Limpieza simple de palabras comunes
           normalizedName:
             v.originalName
               .replace(
@@ -159,6 +197,7 @@ Datos crudos: ${JSON.stringify(rawVenues)}
                 ""
               )
               .trim() || v.originalName,
+
           category: "Bar",
           location: v.location,
           confidence: 50,
@@ -166,10 +205,13 @@ Datos crudos: ${JSON.stringify(rawVenues)}
       );
     }
 
-    console.log("Guardando en la base de datos PostgreSQL...");
+    console.log(
+      "Guardando en la base de datos PostgreSQL..."
+    );
 
     let savedCount = 0;
 
+    // Guarda o actualiza registros en la base de datos
     for (const venue of processedVenues) {
       try {
         await prisma.venue.upsert({
@@ -179,12 +221,16 @@ Datos crudos: ${JSON.stringify(rawVenues)}
               location: venue.location,
             },
           },
+
+          // Actualiza datos si el registro ya existe
           update: {
             originalName: venue.originalName,
             category: venue.category,
             updatedAt: new Date(),
             confidence: venue.confidence ?? null,
           },
+
+          // Crea nuevo registro si no existe
           create: {
             originalName: venue.originalName,
             normalizedName: venue.normalizedName,
@@ -200,13 +246,15 @@ Datos crudos: ${JSON.stringify(rawVenues)}
       } catch (dbError) {
         console.error(
           `Error guardando ${
-            venue.normalizedName || venue.originalName
+            venue.normalizedName ||
+            venue.originalName
           }:`,
           dbError
         );
       }
     }
 
+    // Respuesta final
     return NextResponse.json({
       success: true,
       message: `Sincronización completa. ${savedCount} registros procesados y guardados.`,
@@ -215,6 +263,7 @@ Datos crudos: ${JSON.stringify(rawVenues)}
   } catch (error) {
     console.error("Error general:", error);
 
+    // Error general del proceso
     return NextResponse.json(
       {
         success: false,
@@ -225,6 +274,7 @@ Datos crudos: ${JSON.stringify(rawVenues)}
       }
     );
   } finally {
+    // Cierra conexión Prisma
     try {
       await prisma.$disconnect();
     } catch {}

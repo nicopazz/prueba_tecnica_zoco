@@ -1,32 +1,100 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
+// Cliente de Prisma para operaciones con la base de datos
 const prisma = new PrismaClient();
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    // Datos enviados desde el frontend
     const body = await request.json();
-    
-    // 1. Extraemos TODOS los posibles campos que vienen del frontend
-    const { isActive, normalizedName, location } = body;
 
+    // Campos editables recibidos opcionalmente
+    const { isActive, normalizedName, location, category } = body;
+
+    // Obtiene el id dinámico desde la URL
     const resolvedParams = await params;
     const venueId = resolvedParams.id;
 
-    // 2. Actualizamos en la base de datos permitiendo cambios opcionales
+    // Actualiza únicamente los campos presentes en el body
     const updatedVenue = await prisma.venue.update({
-      where: { id: venueId },
-      data: { 
-        // Solo actualiza si el campo viene en el body, sino mantiene el anterior
+      where: {
+        id: venueId,
+      },
+
+      data: {
         ...(isActive !== undefined && { isActive }),
-        ...(normalizedName !== undefined && { normalizedName }),
-        ...(location !== undefined && { location }),
+
+        ...(normalizedName !== undefined && {
+          normalizedName,
+          
+        }),
+
+        ...(location !== undefined && {
+          location,
+        }),
+        ...(category !== undefined && { 
+          category }),
       },
     });
 
-    return NextResponse.json({ success: true, data: updatedVenue });
+    // Respuesta exitosa
+    return NextResponse.json({
+      success: true,
+      data: updatedVenue,
+    });
   } catch (error) {
     console.error("Error al actualizar:", error);
-    return NextResponse.json({ success: false, error: "No se pudo actualizar" }, { status: 500 });
+
+    // Error interno del servidor
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No se pudo actualizar",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Obtiene el id dinámico desde la URL
+    const resolvedParams = await params;
+    const venueId = resolvedParams.id;
+
+    // Eliminación permanente del registro
+    await prisma.venue.delete({
+      where: {
+        id: venueId,
+      },
+    });
+
+    // Respuesta exitosa
+    return NextResponse.json({
+      success: true,
+      message: "Local eliminado permanentemente",
+    });
+  } catch (error) {
+    console.error("Error al eliminar:", error);
+
+    // Error interno del servidor
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No se pudo eliminar el local",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }
