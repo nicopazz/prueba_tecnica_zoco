@@ -19,7 +19,7 @@ Este proyecto es una solución integral para obtener, procesar, normalizar y adm
   ![Dashboard](./evidencias/CRUD.PNG)
 
 - **Worker de Automatización ejecutándose:**
-  ![Worker](./evidencias/PARTE 3.PNG)
+  ![Worker](./evidencias/AUTOMATIZACION.PNG)
 
 - **Logs del Historial de Ejecuciones:**
   ![Historial](./evidencias/HISTORIAL.PNG)
