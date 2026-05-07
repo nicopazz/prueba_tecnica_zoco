@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import VenueRow from "./components/VenueRow"; // Importamos nuestro nuevo componente
+import NewVenueButton from "./components/NewVenueButton";
 
 const prisma = new PrismaClient();
 export const dynamic = "force-dynamic";
@@ -14,9 +15,7 @@ export default async function Dashboard() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard de Locales</h1>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-            + Nuevo Local
-          </button>
+          <NewVenueButton />
         </div>
 
         <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
