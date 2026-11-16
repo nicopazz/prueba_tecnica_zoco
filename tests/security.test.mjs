@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   verifyAdminAuthorization,
   verifySyncAuthorization,
+  verifyCronAuthorization,
   isUnsafeCrossOrigin,
 } from "../lib/security.ts";
 
@@ -41,4 +42,14 @@ test("rechaza mutaciones originadas desde otro sitio", () => {
   assert.equal(isUnsafeCrossOrigin(new Request(url, {
     method: "DELETE", headers: { origin: "https://otro.example.org" },
   })), true);
+});
+
+test("cron solo admite su propia credencial, distinta del token de sincronización", () => {
+  process.env.CRON_SECRET = "cron_token_de_prueba";
+  process.env.SYNC_API_TOKEN = "sync_token_distinto";
+  assert.equal(verifyCronAuthorization("Bearer cron_token_de_prueba"), true);
+  assert.equal(verifyCronAuthorization("Bearer sync_token_distinto"), false);
+  assert.equal(verifyCronAuthorization(null), false);
+  delete process.env.CRON_SECRET;
+  assert.equal(verifyCronAuthorization("Bearer cron_token_de_prueba"), false);
 });

@@ -25,6 +25,12 @@ export function verifyAdminAuthorization(header: string | null): boolean {
   }
 }
 
+export function verifyCronAuthorization(header: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !header?.startsWith("Bearer ")) return false;
+  return constantTimeMatch(header.slice(7), secret);
+}
+
 export function verifySyncAuthorization(header: string | null): boolean {
   const token = process.env.SYNC_API_TOKEN;
   if (!token || !header?.startsWith("Bearer ")) return false;

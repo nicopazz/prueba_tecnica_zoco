@@ -3,7 +3,7 @@ import { verifyAdminAuthorization } from "./lib/security";
 
 export function proxy(request: NextRequest) {
   // El worker tiene una credencial de servicio distinta; la ruta valida su Bearer.
-  if (request.nextUrl.pathname === "/api/sync") return NextResponse.next();
+  if (request.nextUrl.pathname === "/api/sync" || request.nextUrl.pathname === "/api/cron/sync") return NextResponse.next();
 
   if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
     return NextResponse.json(

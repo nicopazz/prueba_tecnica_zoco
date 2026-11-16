@@ -33,7 +33,7 @@ Esta actualización conserva el esquema de Prisma y NO necesita migración. No e
 
 ## Automatización
 Solo POST /api/sync con Authorization: Bearer (SYNC_API_TOKEN) activa una importación.
-El worker local ejecuta una vez al día por defecto. Vercel NO ejecuta node-cron como proceso persistente: requiere programador externo o Vercel Cron configurado por separado.
+El worker local ejecuta una vez al día por defecto. En Vercel está configurado el Cron nativo para todos los días a las 09:00 UTC (06:00 de Argentina). Para habilitarlo en producción, configurar CRON_SECRET con un token nuevo y distinto de SYNC_API_TOKEN. Sin CRON_SECRET, la ruta del Cron responde 401 y no ejecuta tareas.
 
 ## Verificaciones y advertencias
 - CI usa npm ci, lint, test:security y build.
@@ -42,4 +42,5 @@ El worker local ejecuta una vez al día por defecto. Vercel NO ejecuta node-cron
 - Los registros históricos se vinculan a OSM conservadoramente.
 - La autenticación Basic es provisional, diseñada para un único administrador. Multiusuario requiere sesiones y roles.
 - El borrado de locales sigue siendo permanente; hacer un respaldo antes de habilitarlo en producción.
+- El workflow de CI levanta un PostgreSQL temporal para comprobar el CRUD sin afectar Neon.
 - Antes de fusionar, configurar las credenciales en Production y separar Preview de la base real.
