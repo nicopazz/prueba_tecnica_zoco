@@ -1,49 +1,134 @@
-# Zoco — Sincronizador de locales
+# SALIMO.
 
-Aplicación Next.js para administrar bares y pubs de Tucumán. Usa PostgreSQL (Neon), Prisma y Overpass (OpenStreetMap), con normalización opcional mediante Gemini.
+**¿Salimo? Encontrá dónde.**
 
-## Funcionalidad
-- Dashboard CRUD con edición, alta, eliminación y cambio de estado.
-- Acceso administrativo protegido con usuario y contraseña.
-- Endpoint POST /api/sync con token Bearer independiente.
-- Importación OSM de nodos, vías y relaciones, con identificador estable en el campo source (ej. osm:node:123).
-- Conserva correcciones humanas de nombre normalizado, categoría y ubicación.
-- Transacción PostgreSQL para evitar sincronizaciones simultáneas.
-- Gemini procesa exclusivamente nuevos locales; usa reglas determinísticas cuando falla.
+SALIMO. es una plataforma web en desarrollo para descubrir bares, pubs y cervecerías de **San Miguel de Tucumán y Yerba Buena**. La propuesta es simple: buscar lugares, filtrarlos por zona y categoría, ubicarlos en un mapa y consultar información confiable antes de salir.
 
-## Instalación
-Requiere Node.js 22+ y PostgreSQL. Copiar .env.example a .env y completar los valores sin subirlos a Git.
+Es un **proyecto personal (hobby)**. Priorizamos herramientas gratuitas, rendimiento, simplicidad y la posibilidad de crecer si el proyecto lo necesita.
 
-1. npm ci
-2. npx prisma generate
-3. npm run dev
-4. npm run test:security
-5. npm run worker (solo donde pueda ejecutarse un proceso continuo).
+> **Estado:** en desarrollo. El repositorio contiene una base administrativa funcional; la experiencia pública de SALIMO. todavía está pendiente. Las funcionalidades planificadas no deben confundirse con las ya implementadas.
 
-Esta actualización conserva el esquema de Prisma y NO necesita migración. No ejecutar prisma db push ni migrate reset en una base real sin respaldo.
+## Funcionalidades
+
+### Implementadas
+
+- Dashboard administrativo con listado de establecimientos.
+- Alta, edición, cambio de estado y eliminación de locales.
+- Validaciones y prevención básica de duplicados.
+- Acceso administrativo provisional mediante HTTP Basic.
+- Importación de bares y pubs desde OpenStreetMap a través de Overpass API.
+- Identificación estable de registros OSM y protección de correcciones manuales.
+- Clasificación de locales con Gemini y mecanismo alternativo sin IA.
+- Sincronización manual mediante endpoint protegido y programación diaria con Vercel Cron.
+- Pruebas automatizadas y validaciones en GitHub Actions.
+
+### Planificadas para el MVP
+
+**Web pública (sin registro):**
+- Inicio con buscador, categorías y lugares destacados.
+- Explorador con búsqueda y filtros por localidad y categoría.
+- Mapa interactivo con establecimientos geolocalizados.
+- Ficha de cada lugar con descripción, dirección y datos de contacto, imágenes y horarios **cuando haya datos confiables**.
+
+**Administración:**
+- Panel en `/admin` reutilizando el CRUD existente.
+- Gestión de publicación y revisión de establecimientos.
+- Historial de sincronizaciones y herramientas para revisar datos incompletos o conflictivos.
+
+**Modelo de datos:**
+- Ampliación segura de `Venue` con coordenadas, localidad, descripción, contactos, horarios y estados.
+- Incorporación de `VenueImage` para referencias de fotografías y sus créditos.
+- Incorporación de `SyncRun` para el historial persistente de sincronizaciones.
+
+Las cuentas, los favoritos, las reseñas y las funcionalidades para propietarios quedan fuera del MVP.
+
+## Tecnologías
+
+| Área | Tecnología |
+| --- | --- |
+| Aplicación web y backend | Next.js 16, React 19, TypeScript |
+| Estilos | Tailwind CSS |
+| Base de datos | PostgreSQL en Neon |
+| Acceso a datos | Prisma 5 |
+| Datos geográficos | OpenStreetMap y Overpass API |
+| Clasificación opcional | Gemini |
+| Despliegue y tareas programadas | Vercel y Vercel Cron |
+| Repositorio y CI | GitHub y GitHub Actions |
+
+**Evaluadas para el MVP, todavía no integradas:** MapLibre GL JS + MapTiler (mapas) y Cloudinary (imágenes). Se utilizarán opciones gratuitas mientras resulten adecuadas.
+
+## Ejecutar localmente
+
+**Requisitos:** Node.js 22 o superior, npm y una base PostgreSQL accesible.
+
+```bash
+git clone https://github.com/nicopazz/salimo.git
+cd salimo
+npm ci
+```
+
+Copiá `.env.example` a `.env` y completá las variables necesarias **sin subir credenciales reales al repositorio**.
+
+```bash
+npx prisma generate
+npm run dev
+```
+
+Abrí [http://localhost:3000](http://localhost:3000).
+
+**Importante:** en la versión actual, la ruta `/` muestra el dashboard administrativo y requiere credenciales HTTP Basic. La portada pública y `/admin` son parte de la próxima etapa; todavía no están implementadas.
+
+### Comandos útiles
+
+```bash
+npm run lint
+npm run test:security
+npm run build
+```
+
+`npm run worker` ejecuta el proceso local de sincronización programada y debe utilizarse únicamente en un entorno preparado para ello. **No ejecutes sincronizaciones ni escrituras sobre Production para probar cambios.**
 
 ## Variables de entorno
-- DATABASE_URL: conexión PostgreSQL; Preview y Production deben usar bases/ramas de Neon distintas.
-- ADMIN_USERNAME, ADMIN_PASSWORD: administrador único; HTTPS obligatorio.
-- SYNC_API_TOKEN: token aleatorio separado para sincronización.
-- GEMINI_API_KEY: opcional; en su ausencia se aplica clasificación básica.
-- GEMINI_MODEL: opcional, predeterminado gemini-3.5-flash-lite.
-- OVERPASS_CONTACT: contacto real para la API.
-- SYNC_API_URL, SYNC_CRON, SYNC_TIMEZONE: variables del worker.
 
-## Automatización
-Solo POST /api/sync con Authorization: Bearer (SYNC_API_TOKEN) activa una importación.
-El worker local ejecuta una vez al día por defecto. En Vercel está configurado el Cron nativo para todos los días a las 09:00 UTC (06:00 de Argentina). Para habilitarlo en producción, configurar CRON_SECRET con un token nuevo y distinto de SYNC_API_TOKEN. Sin CRON_SECRET, la ruta del Cron responde 401 y no ejecuta tareas.
+Tomá `.env.example` como referencia. Las principales variables son:
 
-## Verificaciones y advertencias
-- CI usa npm ci, lint, test:security y build.
-- No se incluyen secretos ni credenciales en el repositorio.
-- Las pruebas automatizadas comprueban validaciones y el procesamiento sin tocar la base real.
-- Los registros históricos se vinculan a OSM conservadoramente.
-- La autenticación Basic es provisional, diseñada para un único administrador. Multiusuario requiere sesiones y roles.
-- El borrado de locales sigue siendo permanente; hacer un respaldo antes de habilitarlo en producción.
-- El workflow de CI levanta un PostgreSQL temporal para comprobar el CRUD sin afectar Neon.
-- Antes de fusionar, configurar las credenciales en Production y separar Preview de la base real.
+| Variable | Uso |
+| --- | --- |
+| `DATABASE_URL` | Conexión PostgreSQL |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Acceso administrativo provisional |
+| `SYNC_API_TOKEN` | Token exclusivo para `POST /api/sync` |
+| `CRON_SECRET` | Token exclusivo para el Cron de Vercel |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Clasificación con IA (opcional) |
+| `OVERPASS_CONTACT` | Contacto para solicitudes a Overpass |
+| `SYNC_API_URL`, `SYNC_CRON`, `SYNC_TIMEZONE` | Configuración del worker local |
+| `ALLOW_PREVIEW_WRITES` | Habilitación excepcional de escrituras en Preview, solo con una base aislada |
 
-## Protección de los datos en Preview
-En Vercel Preview, toda operación de escritura está bloqueada por defecto. Solo se puede habilitar definiendo ALLOW_PREVIEW_WRITES=true después de cambiar DATABASE_URL a una rama de Neon aislada. Production no depende de esa variable. El botón Sincronizar está desactivado en Preview mientras esté protegido.
+No reutilices tokens entre servicios ni incluyas secretos en el código o en los commits.
+
+## Sincronización y seguridad
+
+- `POST /api/sync` requiere `Authorization: Bearer <SYNC_API_TOKEN>`.
+- `/api/cron/sync` utiliza `CRON_SECRET`. El Cron está configurado en `vercel.json` para las **09:00 UTC (06:00 de Argentina)**, sujeto a la configuración del despliegue.
+- La sincronización evita ejecuciones concurrentes mediante bloqueo transaccional de PostgreSQL, y conserva las correcciones manuales de nombre normalizado, categoría y ubicación.
+- La autenticación HTTP Basic es **provisional** y está pensada para un solo administrador.
+- El borrado actual de establecimientos es **permanente**; el archivado seguro es una mejora pendiente.
+- Las escrituras en Vercel Preview se bloquean por defecto. **Preview y Production deben utilizar bases o ramas de Neon aisladas antes de habilitar cambios de datos.**
+- Antes de ampliar el esquema Prisma se requiere respaldo comprobado y migración no destructiva. No usar `prisma migrate reset` ni `prisma db push` contra una base con datos reales sin una revisión explícita.
+- GitHub Actions ejecuta lint, pruebas, compilación y una prueba de integración con PostgreSQL temporal, sin usar la base de producción.
+
+## Desarrollo del MVP
+
+1. **Estructura y datos:** adaptar rutas públicas y administrativas; ampliar Prisma de manera segura.
+2. **Experiencia pública:** inicio, explorador, filtros, mapa y fichas.
+3. **Administración:** adaptar el dashboard, agregar revisión y controlar la publicación.
+4. **Calidad y lanzamiento:** pruebas funcionales, accesibilidad, rendimiento, seguridad y consumo de planes gratuitos.
+
+Se trabaja de forma incremental sobre la rama `main`, con cambios pequeños y verificables. No se prevé incorporar servicios pagos mientras SALIMO. siga siendo un proyecto hobby.
+
+## Datos y atribuciones
+
+Parte de la información se obtiene de **OpenStreetMap**, cuyos colaboradores mantienen los datos bajo la licencia **ODbL**. La web pública deberá mostrar la atribución correspondiente y respetar las condiciones de uso de los servicios de mapas y de Overpass. Las fotografías se publicarán solamente cuando exista autorización o licencia adecuada.
+
+---
+
+**SALIMO.** — ¿Salimo? Encontrá dónde.
