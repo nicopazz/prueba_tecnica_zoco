@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
     return new NextResponse("Acceso restringido. Se requieren credenciales.", {
       status: 401,
       headers: {
-        "WWW-Authenticate": 'Basic realm="Zoco Admin", charset="UTF-8"',
+        "WWW-Authenticate": 'Basic realm="SALIMO. Admin", charset="UTF-8"',
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
       },

@@ -28,7 +28,7 @@ export default async function Dashboard() {
         {/* Encabezado principal */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Dashboard de Locales
+            SALIMO. | Administración de locales
           </h1>
 
           {/* Botón para crear un nuevo local */}

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dashboard de Locales | Tucumán",
-  description: "Sistema automatizado para la gestión y normalización de locales.",
+  title: "SALIMO. | Administración de locales",
+  description: "Panel de administración de SALIMO., la futura plataforma para descubrir bares, pubs y cervecerías de Tucumán.",
 };
 
 export default function RootLayout({

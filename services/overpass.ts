@@ -48,7 +48,7 @@ export async function fetchOverpass(): Promise<RawVenue[]> {
   const response = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
     headers: {
-      "User-Agent": "ZocoSync/2.0 (" + (process.env.OVERPASS_CONTACT || "contact-not-configured") + ")",
+      "User-Agent": "SALIMO-Sync/2.0 (" + (process.env.OVERPASS_CONTACT || "contact-not-configured") + ")",
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
       Accept: "application/json",
     },

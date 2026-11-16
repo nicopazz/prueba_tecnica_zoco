@@ -1,4 +1,4 @@
-name: Security and functional checks
+name: SALIMO. - Security and functional checks
 on:
   pull_request:
   push:
@@ -14,18 +14,18 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: zoco
+          POSTGRES_USER: salimo
           POSTGRES_PASSWORD: test-only-password
-          POSTGRES_DB: zoco_test
+          POSTGRES_DB: salimo_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U zoco -d zoco_test"
+          --health-cmd "pg_isready -U salimo -d salimo_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://zoco:test-only-password@localhost:5432/zoco_test?schema=public
+      DATABASE_URL: postgresql://salimo:test-only-password@localhost:5432/salimo_test?schema=public
       ADMIN_USERNAME: ci-admin
       ADMIN_PASSWORD: ci-admin-test-password
       SYNC_API_TOKEN: ci-sync-token
@@ -45,7 +45,7 @@ jobs:
       - run: npx prisma db push
       - name: Test real HTTP CRUD with isolated PostgreSQL
         run: |
-          npm run start > /tmp/zoco-next.log 2>&1 &
+          npm run start > /tmp/salimo-next.log 2>&1 &
           for attempt in $(seq 1 40); do
             status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ || true)
             if [ "$status" = "401" ]; then break; fi
