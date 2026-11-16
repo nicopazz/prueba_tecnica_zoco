@@ -1,14 +1,39 @@
-name: Security checks
+name: Security and functional checks
 on:
   pull_request:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: zoco
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: zoco_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zoco -d zoco_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://zoco:test-only-password@localhost:5432/zoco_test?schema=public
+      ADMIN_USERNAME: ci-admin
+      ADMIN_PASSWORD: ci-admin-test-password
+      SYNC_API_TOKEN: ci-sync-token
+      CRON_SECRET: ci-cron-token
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -17,5 +42,13 @@ jobs:
       - run: npm run lint
       - run: npm run test:security
       - run: npm run build
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+      - run: npx prisma db push
+      - name: Test real HTTP CRUD with isolated PostgreSQL
+        run: |
+          npm run start > /tmp/zoco-next.log 2>&1 &
+          for attempt in $(seq 1 40); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ || true)
+            if [ "$status" = "401" ]; then break; fi
+            sleep 1
+          done
+          node --test tests/integration.test.mjs
