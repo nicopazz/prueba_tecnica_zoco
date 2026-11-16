@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { verifyAdminAuthorization, isUnsafeCrossOrigin } from "@/lib/security";
 import { validateCreateVenue, isPrismaError } from "@/lib/venue-validation";
 
-const prisma = new PrismaClient();
+
 
 export async function POST(request: Request) {
   if (!verifyAdminAuthorization(request.headers.get("authorization"))) {

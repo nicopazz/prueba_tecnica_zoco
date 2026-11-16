@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { verifyAdminAuthorization, isUnsafeCrossOrigin } from "@/lib/security";
 import { validatePatchVenue, isPrismaError } from "@/lib/venue-validation";
 
-const prisma = new PrismaClient();
+
 
 type Context = { params: Promise<{ id: string }> };
 

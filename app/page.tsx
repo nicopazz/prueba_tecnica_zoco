@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import VenueRow from "./components/VenueRow";
 import NewVenueButton from "./components/NewVenueButton";
 import { headers } from "next/headers";
@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { verifyAdminAuthorization } from "@/lib/security";
 
 // Instancia de Prisma para interactuar con la base de datos
-const prisma = new PrismaClient();
+
 
 // Fuerza el renderizado dinámico para obtener datos actualizados en cada request
 export const dynamic = "force-dynamic";
