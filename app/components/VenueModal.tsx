@@ -62,7 +62,7 @@ export default function VenueModal({
     } catch (err) {
       // mostrar error simple (podés mejorar con UI)
       console.error("Error guardando desde modal:", err);
-      alert("No se pudo guardar. Reintenta.");
+      alert(err instanceof Error ? err.message : "No se pudo guardar. Reintenta.");
     } finally {
       setIsSubmitting(false);
     }

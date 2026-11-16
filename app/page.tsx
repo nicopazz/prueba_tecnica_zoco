@@ -1,14 +1,21 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import VenueRow from "./components/VenueRow";
 import NewVenueButton from "./components/NewVenueButton";
+import SyncButton from "./components/SyncButton";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { verifyAdminAuthorization } from "@/lib/security";
 
 // Instancia de Prisma para interactuar con la base de datos
-const prisma = new PrismaClient();
+
 
 // Fuerza el renderizado dinámico para obtener datos actualizados en cada request
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
+  // Defensa adicional: no consultar la base si se evita el proxy.
+  const requestHeaders = await headers();
+  if (!verifyAdminAuthorization(requestHeaders.get("authorization"))) notFound();
   // Obtiene los locales ordenados por fecha de creación descendente
   const venues = await prisma.venue.findMany({
     orderBy: { createdAt: "desc" },
@@ -25,7 +32,10 @@ export default async function Dashboard() {
           </h1>
 
           {/* Botón para crear un nuevo local */}
-          <NewVenueButton />
+          <div className="flex items-center gap-3">
+            <SyncButton disabled={process.env.VERCEL_ENV === "preview" && process.env.ALLOW_PREVIEW_WRITES !== "true"} />
+            <NewVenueButton />
+          </div>
         </div>
 
         {/* Tabla de locales */}

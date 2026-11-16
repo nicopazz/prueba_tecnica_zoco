@@ -1,47 +1,44 @@
-import cron from 'node-cron';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import cron from "node-cron";
 
+const token = process.env.SYNC_API_TOKEN;
+const endpoint = process.env.SYNC_API_URL || "http://localhost:3000/api/sync";
+const frequency = process.env.SYNC_CRON || "0 6 * * *";
+const timezone = process.env.SYNC_TIMEZONE || "America/Argentina/Tucuman";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-
-function registrarLog(mensaje) {
-  const fecha = new Date().toISOString();
-  const lineaLog = `[${fecha}] - ${mensaje}\n`;
-  const rutaLog = path.join(__dirname, 'historial_ejecuciones.log');
-  
-  
-  fs.appendFileSync(rutaLog, lineaLog, 'utf8');
-  console.log(lineaLog.trim());
+if (!token) {
+  console.error("Falta SYNC_API_TOKEN. No se iniciará el worker.");
+  process.exit(1);
 }
 
-async function ejecutarSincronizacion() {
-  registrarLog("INICIO: Disparando sincronización automática...");
-  
+if (!cron.validate(frequency)) {
+  console.error("SYNC_CRON no contiene una expresión válida.");
+  process.exit(1);
+}
+
+const url = new URL(endpoint);
+if (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
+  console.error("SYNC_API_URL debe usar HTTPS fuera del entorno local.");
+  process.exit(1);
+}
+
+async function executeSync() {
+  const startedAt = new Date().toISOString();
+  console.log("[" + startedAt + "] Inicio de sincronización");
   try {
-
-    const respuesta = await fetch("http://localhost:3000/api/sync");
-    const datos = await respuesta.json();
-
-    if (respuesta.ok && datos.success) {
-      registrarLog(`ÉXITO: ${datos.message}`);
-    } else {
-      registrarLog(`ADVERTENCIA: La API respondió pero falló. Detalle: ${datos.error}`);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+      signal: AbortSignal.timeout(90000),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "La sincronización no terminó correctamente.");
     }
+    console.log("[" + new Date().toISOString() + "] Éxito: " + data.message);
   } catch (error) {
-    registrarLog(`ERROR FATAL: No se pudo conectar con el servidor local. ¿Está encendido? Detalle: ${error.message}`);
+    console.error("[" + new Date().toISOString() + "] Error de sincronización:", error);
   }
 }
 
-
-
-const frecuencia = '*/2 * * * *'; 
-
-registrarLog(`Servicio de automatización iniciado. Ejecutando con frecuencia: ${frecuencia}`);
-
-cron.schedule(frecuencia, () => {
-  ejecutarSincronizacion();
-});
+cron.schedule(frequency, executeSync, { timezone, noOverlap: true });
+console.log("Worker iniciado. Frecuencia: " + frequency + " (" + timezone + ")");

@@ -1,100 +1,94 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { verifyAdminAuthorization, isUnsafeCrossOrigin, previewWritesBlocked } from "@/lib/security";
+import { validatePatchVenue, isPrismaError } from "@/lib/venue-validation";
 
-// Cliente de Prisma para operaciones con la base de datos
-const prisma = new PrismaClient();
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+
+type Context = { params: Promise<{ id: string }> };
+
+function rejectUnauthorized(request: Request): Response | null {
+  if (!verifyAdminAuthorization(request.headers.get("authorization"))) {
+    return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+  }
+  if (previewWritesBlocked()) {
+    return NextResponse.json({ success: false, error: "Escrituras deshabilitadas en Preview hasta aislar la base de datos." }, { status: 403 });
+  }
+  if (isUnsafeCrossOrigin(request)) {
+    return NextResponse.json({ success: false, error: "Origen no permitido" }, { status: 403 });
+  }
+  return null;
+}
+
+export async function PATCH(request: Request, { params }: Context) {
+  const denied = rejectUnauthorized(request);
+  if (denied) return denied;
+
+  let body: unknown;
   try {
-    // Datos enviados desde el frontend
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ success: false, error: "El cuerpo debe contener JSON válido." }, { status: 400 });
+  }
+  const result = validatePatchVenue(body);
+  if (!result.success) {
+    return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+  }
 
-    // Campos editables recibidos opcionalmente
-    const { isActive, normalizedName, location, category } = body;
+  const { id } = await params;
+  try {
+    const current = await prisma.venue.findUnique({ where: { id } });
+    if (!current) {
+      return NextResponse.json({ success: false, error: "Local no encontrado." }, { status: 404 });
+    }
 
-    // Obtiene el id dinámico desde la URL
-    const resolvedParams = await params;
-    const venueId = resolvedParams.id;
-
-    // Actualiza únicamente los campos presentes en el body
-    const updatedVenue = await prisma.venue.update({
-      where: {
-        id: venueId,
-      },
-
-      data: {
-        ...(isActive !== undefined && { isActive }),
-
-        ...(normalizedName !== undefined && {
-          normalizedName,
-          
-        }),
-
-        ...(location !== undefined && {
-          location,
-        }),
-        ...(category !== undefined && { 
-          category }),
-      },
-    });
-
-    // Respuesta exitosa
-    return NextResponse.json({
-      success: true,
-      data: updatedVenue,
-    });
-  } catch (error) {
-    console.error("Error al actualizar:", error);
-
-    // Error interno del servidor
-    return NextResponse.json(
-      {
-        success: false,
-        error: "No se pudo actualizar",
-      },
-      {
-        status: 500,
+    if (result.data.normalizedName !== undefined || result.data.location !== undefined) {
+      const name = result.data.normalizedName ?? current.normalizedName;
+      const location = result.data.location ?? current.location;
+      if (name) {
+        const duplicate = await prisma.venue.findFirst({
+          where: {
+            id: { not: id },
+            normalizedName: { equals: name, mode: "insensitive" },
+            location: { equals: location, mode: "insensitive" },
+          },
+          select: { id: true },
+        });
+        if (duplicate) {
+          return NextResponse.json(
+            { success: false, error: "Ya existe otro local con ese nombre y ubicación." },
+            { status: 409 }
+          );
+        }
       }
-    );
+    }
+    const updated = await prisma.venue.update({ where: { id }, data: result.data });
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    if (isPrismaError(error, "P2002")) {
+      return NextResponse.json({ success: false, error: "El local ya existe." }, { status: 409 });
+    }
+    if (isPrismaError(error, "P2025")) {
+      return NextResponse.json({ success: false, error: "Local no encontrado." }, { status: 404 });
+    }
+    console.error("Error interno al actualizar el local:", error);
+    return NextResponse.json({ success: false, error: "No se pudo actualizar el local." }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: Request, { params }: Context) {
+  const denied = rejectUnauthorized(request);
+  if (denied) return denied;
+
+  const { id } = await params;
   try {
-    // Obtiene el id dinámico desde la URL
-    const resolvedParams = await params;
-    const venueId = resolvedParams.id;
-
-    // Eliminación permanente del registro
-    await prisma.venue.delete({
-      where: {
-        id: venueId,
-      },
-    });
-
-    // Respuesta exitosa
-    return NextResponse.json({
-      success: true,
-      message: "Local eliminado permanentemente",
-    });
+    await prisma.venue.delete({ where: { id } });
+    return NextResponse.json({ success: true, message: "Local eliminado permanentemente." });
   } catch (error) {
-    console.error("Error al eliminar:", error);
-
-    // Error interno del servidor
-    return NextResponse.json(
-      {
-        success: false,
-        error: "No se pudo eliminar el local",
-      },
-      {
-        status: 500,
-      }
-    );
+    if (isPrismaError(error, "P2025")) {
+      return NextResponse.json({ success: false, error: "Local no encontrado." }, { status: 404 });
+    }
+    console.error("Error interno al eliminar el local:", error);
+    return NextResponse.json({ success: false, error: "No se pudo eliminar el local." }, { status: 500 });
   }
 }
