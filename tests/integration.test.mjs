@@ -50,6 +50,9 @@ test("CRUD protege autenticación y valida datos con PostgreSQL real", async () 
     const missing = await send("/api/venues/nonexistent", "PATCH", { isActive: true });
     assert.equal(missing.status, 404);
 
+    const adminSyncDenied = await send("/api/admin/sync", "POST", undefined, null);
+    assert.equal(adminSyncDenied.status, 401);
+
     const syncDenied = await send("/api/sync", "POST", undefined, null);
     assert.equal(syncDenied.status, 401);
 

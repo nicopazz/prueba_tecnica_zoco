@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyAdminAuthorization, isUnsafeCrossOrigin } from "@/lib/security";
+import { verifyAdminAuthorization, isUnsafeCrossOrigin, previewWritesBlocked } from "@/lib/security";
 import { validatePatchVenue, isPrismaError } from "@/lib/venue-validation";
 
 
@@ -10,6 +10,9 @@ type Context = { params: Promise<{ id: string }> };
 function rejectUnauthorized(request: Request): Response | null {
   if (!verifyAdminAuthorization(request.headers.get("authorization"))) {
     return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+  }
+  if (previewWritesBlocked()) {
+    return NextResponse.json({ success: false, error: "Escrituras deshabilitadas en Preview hasta aislar la base de datos." }, { status: 403 });
   }
   if (isUnsafeCrossOrigin(request)) {
     return NextResponse.json({ success: false, error: "Origen no permitido" }, { status: 403 });

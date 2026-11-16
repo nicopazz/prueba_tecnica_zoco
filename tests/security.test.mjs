@@ -4,6 +4,7 @@ import {
   verifyAdminAuthorization,
   verifySyncAuthorization,
   verifyCronAuthorization,
+  previewWritesBlocked,
   isUnsafeCrossOrigin,
 } from "../lib/security.ts";
 
@@ -52,4 +53,25 @@ test("cron solo admite su propia credencial, distinta del token de sincronizaciÃ
   assert.equal(verifyCronAuthorization(null), false);
   delete process.env.CRON_SECRET;
   assert.equal(verifyCronAuthorization("Bearer cron_token_de_prueba"), false);
+});
+
+test("bloquea escrituras de Preview hasta configurar una base aislada", () => {
+  const oldVercel = process.env.VERCEL_ENV;
+  const oldAllow = process.env.ALLOW_PREVIEW_WRITES;
+  try {
+    process.env.VERCEL_ENV = "preview";
+    delete process.env.ALLOW_PREVIEW_WRITES;
+    assert.equal(previewWritesBlocked(), true);
+    process.env.ALLOW_PREVIEW_WRITES = "false";
+    assert.equal(previewWritesBlocked(), true);
+    process.env.ALLOW_PREVIEW_WRITES = "true";
+    assert.equal(previewWritesBlocked(), false);
+    process.env.VERCEL_ENV = "production";
+    assert.equal(previewWritesBlocked(), false);
+  } finally {
+    if (oldVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = oldVercel;
+    if (oldAllow === undefined) delete process.env.ALLOW_PREVIEW_WRITES;
+    else process.env.ALLOW_PREVIEW_WRITES = oldAllow;
+  }
 });

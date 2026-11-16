@@ -51,3 +51,10 @@ export function isUnsafeCrossOrigin(request: Request): boolean {
     return true;
   }
 }
+
+export function previewWritesBlocked(): boolean {
+  // Vercel puede conectar Preview a la misma base que Production.
+  // Las escrituras requieren una habilitación explícita tras aislar DATABASE_URL.
+  return process.env.VERCEL_ENV === "preview" &&
+    process.env.ALLOW_PREVIEW_WRITES !== "true";
+}

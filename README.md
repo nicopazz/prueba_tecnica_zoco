@@ -44,3 +44,6 @@ El worker local ejecuta una vez al día por defecto. En Vercel está configurado
 - El borrado de locales sigue siendo permanente; hacer un respaldo antes de habilitarlo en producción.
 - El workflow de CI levanta un PostgreSQL temporal para comprobar el CRUD sin afectar Neon.
 - Antes de fusionar, configurar las credenciales en Production y separar Preview de la base real.
+
+## Protección de los datos en Preview
+En Vercel Preview, toda operación de escritura está bloqueada por defecto. Solo se puede habilitar definiendo ALLOW_PREVIEW_WRITES=true después de cambiar DATABASE_URL a una rama de Neon aislada. Production no depende de esa variable. El botón Sincronizar está desactivado en Preview mientras esté protegido.

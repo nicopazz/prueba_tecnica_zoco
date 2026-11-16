@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import VenueRow from "./components/VenueRow";
 import NewVenueButton from "./components/NewVenueButton";
+import SyncButton from "./components/SyncButton";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifyAdminAuthorization } from "@/lib/security";
@@ -31,7 +32,10 @@ export default async function Dashboard() {
           </h1>
 
           {/* Botón para crear un nuevo local */}
-          <NewVenueButton />
+          <div className="flex items-center gap-3">
+            <SyncButton disabled={process.env.VERCEL_ENV === "preview" && process.env.ALLOW_PREVIEW_WRITES !== "true"} />
+            <NewVenueButton />
+          </div>
         </div>
 
         {/* Tabla de locales */}

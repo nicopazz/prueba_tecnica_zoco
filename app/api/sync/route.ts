@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifySyncAuthorization } from "@/lib/security";
+import { verifySyncAuthorization, previewWritesBlocked } from "@/lib/security";
 import { runSync, ConcurrentSyncError } from "@/services/sync";
 
 export const runtime = "nodejs";
@@ -10,6 +10,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "No autorizado" }, {
       status: 401, headers: { "Cache-Control": "no-store" },
     });
+  }
+  if (previewWritesBlocked()) {
+    return NextResponse.json({ success: false, error: "La sincronización está deshabilitada en Preview hasta aislar la base de datos." }, { status: 403 });
   }
   try {
     const counts = await runSync();
