@@ -1,7 +1,7 @@
 import type { RawVenue } from "./overpass";
 
-export type ClassifiedVenue = RawVenue & { normalizedName: string; confidence: number };
 type Category = "Bar" | "Pub" | "Cervecería" | "Boliche";
+export type ClassifiedVenue = Omit<RawVenue, "category"> & { category: Category; normalizedName: string; confidence: number };
 const allowed = new Set<string>(["Bar", "Pub", "Cervecería", "Boliche"]);
 
 function baseline(row: RawVenue): ClassifiedVenue {
