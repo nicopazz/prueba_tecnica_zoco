@@ -1,6 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import VenueRow from "./components/VenueRow";
 import NewVenueButton from "./components/NewVenueButton";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { verifyAdminAuthorization } from "@/lib/security";
 
 // Instancia de Prisma para interactuar con la base de datos
 const prisma = new PrismaClient();
@@ -9,6 +12,9 @@ const prisma = new PrismaClient();
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
+  // Defensa adicional: no consultar la base si se evita el proxy.
+  const requestHeaders = await headers();
+  if (!verifyAdminAuthorization(requestHeaders.get("authorization"))) notFound();
   // Obtiene los locales ordenados por fecha de creación descendente
   const venues = await prisma.venue.findMany({
     orderBy: { createdAt: "desc" },

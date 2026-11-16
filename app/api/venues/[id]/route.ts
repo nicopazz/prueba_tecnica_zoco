@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { verifyAdminAuthorization, isUnsafeCrossOrigin } from "@/lib/security";
 
 // Cliente de Prisma para operaciones con la base de datos
 const prisma = new PrismaClient();
@@ -8,6 +9,12 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!verifyAdminAuthorization(request.headers.get("authorization"))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (isUnsafeCrossOrigin(request)) {
+    return NextResponse.json({ error: "Origen no permitido" }, { status: 403 });
+  }
   try {
     // Datos enviados desde el frontend
     const body = await request.json();
@@ -66,6 +73,12 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!verifyAdminAuthorization(request.headers.get("authorization"))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (isUnsafeCrossOrigin(request)) {
+    return NextResponse.json({ error: "Origen no permitido" }, { status: 403 });
+  }
   try {
     // Obtiene el id dinámico desde la URL
     const resolvedParams = await params;

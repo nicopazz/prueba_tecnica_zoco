@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { verifySyncAuthorization } from "@/lib/security";
 
 // Fuerza ejecución en entorno Node.js
 export const runtime = "nodejs";
@@ -33,7 +34,10 @@ type ProcessedVenue = {
   confidence: number | null;
 };
 
-export async function GET() {
+export async function POST(request: Request) {
+  if (!verifySyncAuthorization(request.headers.get("authorization"))) {
+    return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+  }
   console.log("Iniciando sincronización con Overpass API...");
 
   // Consulta Overpass para bares y pubs en Tucumán

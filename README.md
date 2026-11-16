@@ -74,3 +74,20 @@ Si el volumen de datos creciera a miles de registros por ciudad:
    \`\`\`bash
    npm run worker
    \`\`\`
+
+---
+
+## Protección administrativa (primer endurecimiento de seguridad)
+
+La aplicación utiliza autenticación HTTP Basic para **un solo administrador** (acceso simple temporal, siempre sobre HTTPS). El dashboard y el CRUD quedan protegidos. La ruta de sincronización requiere un token Bearer independiente.
+
+1. Copiar ".env.example" a ".env" y completar sus credenciales. Nunca subir ".env" a Git.
+2. Crear contraseñas **largas, aleatorias y diferentes** para ADMIN_PASSWORD y SYNC_API_TOKEN.
+3. Iniciar con "npm run dev"; el navegador solicitará usuario y contraseña.
+4. Iniciar el worker con "npm run worker"; por defecto sincroniza a las 06:00 hora de Tucumán (configurable con SYNC_CRON y SYNC_TIMEZONE).
+5. Para un worker remoto, configurar SYNC_API_URL con la URL HTTPS pública de la API.
+6. Ejecutar "npm run test:security" para comprobar la autenticación y el rechazo de solicitudes cross-site.
+
+**Antes de desplegar:** cargar ADMIN_USERNAME, ADMIN_PASSWORD y SYNC_API_TOKEN en las variables de entorno del servidor/hosting y del worker según corresponda. Si faltan credenciales, el acceso administrativo queda bloqueado. Ya no se admite "GET /api/sync": debe usarse POST con Authorization: Bearer (SYNC_API_TOKEN).
+
+No usar HTTP Basic para una aplicación multiusuario: el siguiente paso sería una sesión con permisos y protección frente a intentos repetidos de autenticación.
