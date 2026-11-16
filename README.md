@@ -91,3 +91,14 @@ La aplicación utiliza autenticación HTTP Basic para **un solo administrador** 
 **Antes de desplegar:** cargar ADMIN_USERNAME, ADMIN_PASSWORD y SYNC_API_TOKEN en las variables de entorno del servidor/hosting y del worker según corresponda. Si faltan credenciales, el acceso administrativo queda bloqueado. Ya no se admite "GET /api/sync": debe usarse POST con Authorization: Bearer (SYNC_API_TOKEN).
 
 No usar HTTP Basic para una aplicación multiusuario: el siguiente paso sería una sesión con permisos y protección frente a intentos repetidos de autenticación.
+
+
+## Validaciones del CRUD
+
+- POST exige nombre (2–160 caracteres), ubicación (3–250 caracteres) y una categoría permitida.
+- PATCH acepta actualizaciones parciales, pero rechaza campos desconocidos y tipos inválidos.
+- JSON inválido: 400; duplicados: 409; registro inexistente: 404.
+- El modal conserva los datos cuando falla el alta.
+- Ejecutar `npm run test:security` para validar autenticación y controles de entrada.
+
+Pendiente: eliminación recuperable, prevención de duplicados bajo concurrencia con clave canónica persistida, tests de integración con PostgreSQL aislado.
