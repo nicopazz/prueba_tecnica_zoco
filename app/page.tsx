@@ -1,94 +1,47 @@
-import { prisma } from "@/lib/prisma";
-import VenueRow from "./components/VenueRow";
-import NewVenueButton from "./components/NewVenueButton";
-import SyncButton from "./components/SyncButton";
-import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import { verifyAdminAuthorization } from "@/lib/security";
+import Link from "next/link";
+import PublicNav from "./components/PublicNav";
+import PublicVenueCard from "./components/PublicVenueCard";
+import { listPublicVenues, venueSchemaReady } from "@/lib/public-venues";
 
-// Instancia de Prisma para interactuar con la base de datos
-
-
-// Fuerza el renderizado dinámico para obtener datos actualizados en cada request
-export const dynamic = "force-dynamic";
-
-export default async function Dashboard() {
-  // Defensa adicional: no consultar la base si se evita el proxy.
-  const requestHeaders = await headers();
-  if (!verifyAdminAuthorization(requestHeaders.get("authorization"))) notFound();
-  // Obtiene los locales ordenados por fecha de creación descendente
-  const venues = await prisma.venue.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-
+export const revalidate = 300;
+export default async function Home() {
+  const [venues, ready] = await Promise.all([listPublicVenues(), venueSchemaReady()]);
   return (
-    <main className="min-h-screen bg-gray-50 p-8 text-gray-800">
-      <div className="max-w-6xl mx-auto">
-        
-        {/* Encabezado principal */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            SALIMO. | Administración de locales
-          </h1>
-
-          {/* Botón para crear un nuevo local */}
-          <div className="flex items-center gap-3">
-            <SyncButton disabled={process.env.VERCEL_ENV === "preview" && process.env.ALLOW_PREVIEW_WRITES !== "true"} />
-            <NewVenueButton />
+    <>
+      <PublicNav />
+      <main className="mx-auto max-w-6xl space-y-10 px-5 py-10 text-gray-900">
+        <section className="space-y-5">
+          <p className="text-sm font-medium uppercase tracking-wider">San Miguel de Tucumán · Yerba Buena</p>
+          <h1 className="text-4xl font-bold tracking-tight">¿Salimo? Encontrá dónde.</h1>
+          <p className="max-w-2xl text-gray-600">Descubrí bares, pubs y cervecerías para tu próxima salida.</p>
+          <form action="/explorar" className="flex max-w-xl flex-wrap gap-2" role="search">
+            <label htmlFor="home-search" className="sr-only">Buscar un lugar</label>
+            <input id="home-search" name="q" placeholder="Nombre o dirección..." className="min-w-52 flex-1 rounded-lg border border-gray-300 px-4 py-3" />
+            <button type="submit" className="rounded-lg bg-gray-900 px-5 py-3 font-semibold text-white">Buscar</button>
+          </form>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Link href="/explorar?category=Bar" className="rounded-full border px-4 py-2">Bares</Link>
+            <Link href="/explorar?category=Pub" className="rounded-full border px-4 py-2">Pubs</Link>
+            <Link href="/explorar?category=Cervecer%C3%ADa" className="rounded-full border px-4 py-2">Cervecerías</Link>
           </div>
-        </div>
-
-        {/* Tabla de locales */}
-        <div className="bg-white shadow-md rounded-lg overflow-x-auto border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            
-            {/* Cabecera de la tabla */}
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nombre
-                </th>
-
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoría
-                </th>
-
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ubicación
-                </th>
-
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-
-            {/* Contenido de la tabla */}
-            <tbody className="bg-white divide-y divide-gray-200">
-              {venues.length === 0 ? (
-                // Mensaje cuando no existen registros
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-4 text-center text-gray-500"
-                  >
-                    No hay datos. Ejecuta el worker para obtener locales.
-                  </td>
-                </tr>
-              ) : (
-                // Renderiza una fila por cada local obtenido
-                venues.map((venue) => (
-                  <VenueRow key={venue.id} venue={venue} />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
+        </section>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">Lugares para descubrir</h2>
+            <Link href="/explorar" className="text-sm underline">Ver todos</Link>
+          </div>
+          {!ready ? <p className="rounded-lg border p-4 text-gray-600">Estamos preparando el catálogo. Los locales aparecerán cuando se complete su revisión.</p> : null}
+          {ready && venues.length === 0 ? <p className="rounded-lg border p-4 text-gray-600">Todavía no hay locales publicados.</p> : null}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {venues.slice(0, 6).map((venue) => <PublicVenueCard key={venue.id} venue={venue} />)}
+          </div>
+        </section>
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-5">
+          <p>¿Preferís elegir por ubicación? Explorá los locales geolocalizados.</p>
+          <Link href="/mapa" className="font-semibold underline">Abrir mapa</Link>
+        </section>
+      </main>
+      <footer className="mx-auto max-w-6xl px-5 pb-8 text-sm text-gray-500"><Link href="/fuentes" className="underline">Datos y atribuciones</Link></footer>
+    </>
   );
 }

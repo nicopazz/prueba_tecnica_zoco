@@ -3,12 +3,17 @@ export type RawVenue = {
   originalName: string;
   location: string;
   category: "Bar" | "Pub";
+  latitude: number | null;
+  longitude: number | null;
+  city: string | null;
+  address: string | null;
 };
 
 type JsonObject = Record<string, unknown>;
 function object(value: unknown): value is JsonObject {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
+
 export function parseOverpass(data: unknown): RawVenue[] {
   if (!object(data) || !Array.isArray(data.elements)) throw new Error("Formato inválido de Overpass.");
   const result = new Map<string, RawVenue>();
@@ -26,18 +31,22 @@ export function parseOverpass(data: unknown): RawVenue[] {
     const point = object(item.center) ? item.center : item;
     const lat = point.lat;
     const lon = point.lon;
-    const location = street
-      ? [street, number].filter(Boolean).join(" ")
-      : typeof lat === "number" && typeof lon === "number" &&
-        Number.isFinite(lat) && Number.isFinite(lon) &&
-        Math.abs(lat) <= 90 && Math.abs(lon) <= 180
-          ? "Lat: " + lat.toFixed(6) + ", Lon: " + lon.toFixed(6) : "";
+    const hasCoords = typeof lat === "number" && typeof lon === "number" &&
+      Number.isFinite(lat) && Number.isFinite(lon) &&
+      Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    const address = street ? [street, number].filter(Boolean).join(" ") : null;
+    const location = address || (hasCoords ? "Lat: " + (lat as number).toFixed(6) + ", Lon: " + (lon as number).toFixed(6) : "");
     if (location.length < 3 || location.length > 250) continue;
 
+    const rawCity = typeof item.tags["addr:city"] === "string" ? item.tags["addr:city"].trim() : "";
+    const city = ["San Miguel de Tucumán", "Yerba Buena"].find(c => c.toLocaleLowerCase("es") === rawCity.toLocaleLowerCase("es")) || null;
     const osmKey = "osm:" + item.type + ":" + item.id;
     result.set(osmKey, {
       osmKey, originalName: name, location,
       category: item.tags.amenity === "pub" ? "Pub" : "Bar",
+      latitude: hasCoords ? lat as number : null,
+      longitude: hasCoords ? lon as number : null,
+      city, address,
     });
   }
   return [...result.values()].sort((a, b) => a.osmKey.localeCompare(b.osmKey));

@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminAuthorization } from "./lib/security";
 
 export function proxy(request: NextRequest) {
-  // El worker tiene una credencial de servicio distinta; la ruta valida su Bearer.
-  if (request.nextUrl.pathname === "/api/sync" || request.nextUrl.pathname === "/api/cron/sync") return NextResponse.next();
-
+  // Solo las páginas y APIs administrativas requieren HTTP Basic.
+  // /api/sync y /api/cron/sync conservan sus tokens Bearer independientes.
   if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
     return NextResponse.json(
       { error: "Configuración de acceso administrativo incompleta." },
@@ -26,9 +25,10 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Cache-Control", "no-store");
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/api/venues/:path*"],
 };

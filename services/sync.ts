@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { venueSchemaReady } from "@/lib/public-venues";
 import { fetchOverpass } from "./overpass";
 import { classifyNewVenues } from "./ai";
 
-// Evita asociar un OSM distinto con un registro antiguo solo por compartir el nombre.
 function samePlace(previous: string, current: string): boolean {
   if (previous.trim().toLocaleLowerCase() === current.trim().toLocaleLowerCase()) return true;
   const coordinates = /^Lat:\s*(-?\d+(?:\.\d+)?),\s*Lon:\s*(-?\d+(?:\.\d+)?)$/i;
@@ -17,7 +17,17 @@ export class ConcurrentSyncError extends Error {
   constructor() { super("Otra sincronización está guardando registros."); }
 }
 
-export async function runSync() {
+type SyncResult = {
+  encontrados: number;
+  creados: number;
+  actualizados: number;
+  sinCambios: number;
+  conflictos: number;
+  iaUtilizada: boolean;
+  advertencias: string[];
+};
+
+async function executeSync(schemaReady: boolean): Promise<SyncResult> {
   const rows = await fetchOverpass();
   if (rows.length === 0) {
     return { encontrados: 0, creados: 0, actualizados: 0, sinCambios: 0, conflictos: 0, iaUtilizada: false,
@@ -33,40 +43,39 @@ export async function runSync() {
   const ai = await classifyNewVenues(newRows);
   const classified = new Map(ai.venues.map(row => [row.osmKey, row]));
 
-  // Bloqueo transaccional en la base de datos, válido entre instancias serverless.
-  // Si alguna escritura falla, se revierte toda la ejecución.
   const counts = await prisma.$transaction(async tx => {
-    // SQL constante sin datos provenientes del usuario.
     const locked = await tx.$queryRawUnsafe<Array<{ locked: boolean }>>(
       "SELECT pg_try_advisory_xact_lock(20261116) AS locked"
     );
     if (!locked[0]?.locked) throw new ConcurrentSyncError();
     const count = { creados: 0, actualizados: 0, sinCambios: 0, conflictos: 0 };
     for (const row of rows) {
-      const found = await tx.venue.findFirst({ where: { source: row.osmKey } });
+      const found = await tx.venue.findFirst({
+        where: { source: row.osmKey },
+        select: { id: true, originalName: true },
+      });
       if (found) {
-        // Preserva las correcciones hechas desde el dashboard.
+        // Respeta nombre editado, categoría, ubicación y publicación manual.
         if (found.originalName !== row.originalName) {
-          await tx.venue.update({
-            where: { id: found.id }, data: { originalName: row.originalName },
-          });
+          await tx.venue.update({ where: { id: found.id }, data: { originalName: row.originalName }, select: { id: true } });
           count.actualizados++;
         } else count.sinCambios++;
         continue;
       }
 
-      // Vincula registros importados antes de guardar los IDs de OSM.
       const legacy = await tx.venue.findMany({
         where: {
           source: "Overpass API",
           originalName: { equals: row.originalName, mode: "insensitive" },
         },
+        select: { id: true, location: true },
         take: 2,
       });
       if (legacy.length === 1 && samePlace(legacy[0].location, row.location)) {
         await tx.venue.update({
           where: { id: legacy[0].id },
           data: { source: row.osmKey, originalName: row.originalName },
+          select: { id: true },
         });
         count.actualizados++;
         continue;
@@ -87,18 +96,63 @@ export async function runSync() {
 
       await tx.venue.create({
         data: {
-          originalName: row.originalName,
-          normalizedName: proposal.normalizedName,
-          location: row.location,
-          category: proposal.category,
-          source: row.osmKey,
-          confidence: proposal.confidence,
-          isActive: true,
+          originalName: row.originalName, normalizedName: proposal.normalizedName,
+          location: row.location, category: proposal.category, source: row.osmKey,
+          confidence: proposal.confidence, isActive: true,
+          ...(schemaReady ? {
+            latitude: row.latitude, longitude: row.longitude, city: row.city,
+            address: row.address, coordinateSource: row.latitude === null ? null : "OSM_CENTER",
+          } : {}),
+          // Nunca publicar automáticamente los locales importados.
         },
+        select: { id: true },
       });
       count.creados++;
     }
     return count;
   }, { maxWait: 3000, timeout: 45000 });
   return { encontrados: rows.length, ...counts, iaUtilizada: ai.usedAi, advertencias: ai.warnings };
+}
+
+export async function runSync(triggeredBy: "MANUAL" | "CRON" | "TOKEN" = "TOKEN"): Promise<SyncResult> {
+  const schemaReady = await venueSchemaReady();
+  let historyId: string | null = null;
+  if (schemaReady) {
+    try {
+      const history = await prisma.syncRun.create({
+        data: { status: "RUNNING", triggeredBy }, select: { id: true },
+      });
+      historyId = history.id;
+    } catch (error) {
+      console.error("No se pudo iniciar el registro de sincronización:", error);
+    }
+  }
+
+  try {
+    const result = await executeSync(schemaReady);
+    if (historyId) {
+      try {
+        await prisma.syncRun.update({
+          where: { id: historyId },
+          data: { status: "SUCCESS", finishedAt: new Date(),
+            foundCount: result.encontrados, createdCount: result.creados,
+            updatedCount: result.actualizados, conflictCount: result.conflictos,
+            warnings: result.advertencias },
+          select: { id: true },
+        });
+      } catch (error) { console.error("No se pudo registrar el resultado de sincronización:", error); }
+    }
+    return result;
+  } catch (error) {
+    if (historyId) {
+      try {
+        await prisma.syncRun.update({
+          where: { id: historyId },
+          data: { status: "FAILED", finishedAt: new Date(), errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Error desconocido" },
+          select: { id: true },
+        });
+      } catch (historyError) { console.error("No se pudo registrar el fallo de sincronización:", historyError); }
+    }
+    throw error;
+  }
 }

@@ -5,8 +5,6 @@ import { runSync, ConcurrentSyncError } from "@/services/sync";
 export const runtime = "nodejs";
 export const maxDuration = 90;
 
-// Vercel Cron utiliza GET y agrega Authorization: Bearer CRON_SECRET.
-// Este endpoint no acepta la contraseña de administrador ni el token de la API.
 export async function GET(request: Request) {
   if (!verifyCronAuthorization(request.headers.get("authorization"))) {
     return NextResponse.json({ success: false, error: "No autorizado" }, {
@@ -14,7 +12,7 @@ export async function GET(request: Request) {
     });
   }
   try {
-    const counts = await runSync();
+    const counts = await runSync("CRON");
     console.info("[CRON SYNC]", JSON.stringify({ fecha: new Date().toISOString(), ...counts }));
     return NextResponse.json({ success: true, counts }, {
       headers: { "Cache-Control": "no-store" },

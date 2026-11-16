@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "worker": "node automatizacion.js",
-    "test:security": "node --experimental-strip-types --test tests/security.test.mjs tests/venues.test.mjs tests/sync.test.mjs"
+    "test:security": "node --experimental-strip-types --test tests/security.test.mjs tests/venues.test.mjs tests/sync.test.mjs",
+    "test:e2e": "node --test tests/integration.test.mjs tests/public.e2e.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

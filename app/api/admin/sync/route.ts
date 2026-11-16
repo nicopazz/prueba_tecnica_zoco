@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Origen no permitido" }, { status: 403 });
   }
   try {
-    const counts = await runSync();
+    const counts = await runSync("MANUAL");
     return NextResponse.json({ success: true, counts }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Error en sincronización manual:", error);

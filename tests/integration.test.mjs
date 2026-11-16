@@ -16,7 +16,7 @@ async function send(path, method = "GET", body, authorization = admin, extraHead
   return { status: response.status, data: await response.json().catch(() => null) };
 }
 
-test("CRUD protege autenticación y valida datos con PostgreSQL real", async () => {
+test("CRUD protege autenticación y valida datos con PostgreSQL aislado", async () => {
   const unauth = await send("/api/venues", "POST", { normalizedName: "Falso" }, null);
   assert.equal(unauth.status, 401);
   const crossSite = await send("/api/venues", "POST",
@@ -59,9 +59,11 @@ test("CRUD protege autenticación y valida datos con PostgreSQL real", async () 
     const cronDenied = await send("/api/cron/sync", "GET", undefined, null);
     assert.equal(cronDenied.status, 401);
   } finally {
-    const deleted = await send("/api/venues/" + id, "DELETE");
-    assert.equal(deleted.status, 200);
+    const restore = await send("/api/venues/" + id, "PATCH", { isActive: true });
+    assert.equal(restore.status, 200);
+    const archived = await send("/api/venues/" + id, "DELETE");
+    assert.equal(archived.status, 200);
   }
-  const deletedAgain = await send("/api/venues/" + id, "DELETE");
-  assert.equal(deletedAgain.status, 404);
+  const archivedAgain = await send("/api/venues/" + id, "DELETE");
+  assert.equal(archivedAgain.status, 404);
 });
