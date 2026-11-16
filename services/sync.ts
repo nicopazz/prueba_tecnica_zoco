@@ -2,6 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { fetchOverpass } from "./overpass";
 import { classifyNewVenues } from "./ai";
 
+// Evita asociar un OSM distinto con un registro antiguo solo por compartir el nombre.
+function samePlace(previous: string, current: string): boolean {
+  if (previous.trim().toLocaleLowerCase() === current.trim().toLocaleLowerCase()) return true;
+  const coordinates = /^Lat:\s*(-?\d+(?:\.\d+)?),\s*Lon:\s*(-?\d+(?:\.\d+)?)$/i;
+  const before = coordinates.exec(previous);
+  const after = coordinates.exec(current);
+  return !!before && !!after &&
+    Math.abs(Number(before[1]) - Number(after[1])) < 0.00015 &&
+    Math.abs(Number(before[2]) - Number(after[2])) < 0.00015;
+}
+
 export class ConcurrentSyncError extends Error {
   constructor() { super("Otra sincronización está guardando registros."); }
 }
@@ -52,7 +63,7 @@ export async function runSync() {
         },
         take: 2,
       });
-      if (legacy.length === 1) {
+      if (legacy.length === 1 && samePlace(legacy[0].location, row.location)) {
         await tx.venue.update({
           where: { id: legacy[0].id },
           data: { source: row.osmKey, originalName: row.originalName },
@@ -60,7 +71,7 @@ export async function runSync() {
         count.actualizados++;
         continue;
       }
-      if (legacy.length > 1) { count.conflictos++; continue; }
+      if (legacy.length > 0) { count.conflictos++; continue; }
 
       const proposal = classified.get(row.osmKey) ?? {
         ...row, normalizedName: row.originalName, confidence: 50,
