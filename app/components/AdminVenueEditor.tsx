@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import AdminLocationPicker from "./AdminLocationPicker";
+import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 
 type EditableVenue = {
   id: string;
@@ -34,6 +36,15 @@ export default function AdminVenueEditor({ venue, schemaReady }: { venue?: Edita
   const [imageSaving, setImageSaving] = useState(false);
   const [publicationStatus, setPublicationStatus] = useState(venue?.publicationStatus || "DRAFT");
   const [reviewStatus, setReviewStatus] = useState(venue?.reviewStatus || "PENDING");
+  const [city, setCity] = useState(venue?.city || "");
+  const [address, setAddress] = useState(venue?.address || (venue?.location?.startsWith("Lat: ") ? "" : venue?.location || ""));
+  const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(
+    isWithinSalimoArea(venue?.latitude, venue?.longitude)
+      ? { latitude: venue!.latitude!, longitude: venue!.longitude! }
+      : null
+  );
+  const hadInvalidCoordinates = venue?.latitude != null && venue.longitude != null
+    && !isWithinSalimoArea(venue.latitude, venue.longitude);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,14 +53,23 @@ export default function AdminVenueEditor({ venue, schemaReady }: { venue?: Edita
     setError("");
     const form = new FormData(event.currentTarget);
     const val = (field: string) => String(form.get(field) || "").trim();
-    const basics = { normalizedName: val("normalizedName"), location: val("location"), category: val("category") };
+    const basics = {
+      normalizedName: val("normalizedName"),
+      location: venue || !schemaReady ? val("location") : val("address"),
+      category: val("category"),
+    };
+    if (!venue && schemaReady && basics.location.length < 3) {
+      setError("Ingresá la dirección del nuevo establecimiento.");
+      setSaving(false);
+      return;
+    }
     const extra = {
       ...basics, city: val("city") || null, address: val("address") || null,
       description: val("description") || null, phone: val("phone") || null,
       whatsapp: val("whatsapp") || null, instagram: val("instagram") || null,
       website: val("website") || null, openingHours: val("openingHours") || null,
-      latitude: val("latitude") ? Number(val("latitude")) : null,
-      longitude: val("longitude") ? Number(val("longitude")) : null,
+      latitude: position?.latitude ?? null,
+      longitude: position?.longitude ?? null,
       reviewStatus, publicationStatus,
       isActive: form.get("isActive") === "on",
       isFeatured: form.get("isFeatured") === "on",
@@ -125,27 +145,26 @@ export default function AdminVenueEditor({ venue, schemaReady }: { venue?: Edita
               {["Bar", "Pub", "Cervecería", "Boliche"].map((value) => <option key={value}>{value}</option>)}
             </select>
           </label>
-          <label className="space-y-1 text-sm font-medium sm:col-span-2">Ubicación original
-            <input name="location" defaultValue={venue?.location || ""} minLength={3} maxLength={250} required className={input} />
-          </label>
+          {venue || !schemaReady ? (
+            <label className="space-y-1 text-sm font-medium sm:col-span-2">Ubicación original
+              <input name="location" defaultValue={venue?.location || ""} minLength={3} maxLength={250} required className={input} />
+            </label>
+          ) : null}
         </div>
         {schemaReady ? <>
           <h2 className="border-t pt-4 text-lg font-semibold">Información pública</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1 text-sm font-medium">Localidad
-              <select name="city" defaultValue={venue?.city || ""} className={input}>
+            <label className="space-y-1 text-sm font-medium sm:col-span-2">Localidad
+              <select name="city" value={city} onChange={event => setCity(event.target.value)} className={input}>
                 <option value="">Sin confirmar</option><option>San Miguel de Tucumán</option><option>Yerba Buena</option>
               </select>
             </label>
-            <label className="space-y-1 text-sm font-medium">Dirección
-              <input name="address" defaultValue={venue?.address || ""} maxLength={250} className={input} />
-            </label>
-            <label className="space-y-1 text-sm font-medium">Latitud
-              <input name="latitude" type="number" step="any" min="-90" max="90" defaultValue={venue?.latitude ?? ""} className={input} />
-            </label>
-            <label className="space-y-1 text-sm font-medium">Longitud
-              <input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={venue?.longitude ?? ""} className={input} />
-            </label>
+            {hadInvalidCoordinates ? (
+              <p className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                Las coordenadas anteriores están fuera de Tucumán. Seleccioná el lugar correcto en el mapa; no reutilizaremos ese punto inválido.
+              </p>
+            ) : null}
+            <AdminLocationPicker address={address} onAddressChange={setAddress} city={city} position={position} onPositionChange={setPosition} />
             <label className="space-y-1 text-sm font-medium sm:col-span-2">Descripción
               <textarea name="description" defaultValue={venue?.description || ""} maxLength={2000} rows={3} className={input} />
             </label>

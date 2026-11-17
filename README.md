@@ -10,6 +10,7 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 - Web pública: Inicio (`/`), Explorar (`/explorar`), Mapa (`/mapa`), fichas (`/lugares/[slug]`) y atribuciones (`/fuentes`).
 - Búsqueda y filtros por localidad y categoría, reutilizados en el mapa.
 - Área administrativa privada en `/admin` con panel, CRUD, revisión, historial y configuración.
+- En el administrador, la ubicación se elige buscando una dirección o haciendo clic/arrastrando un pin sobre el mapa (coordenadas guardadas automáticamente).
 - Publicación controlada: solo se muestran locales revisados y publicados.
 - Sincronización OSM por Overpass, clasificación opcional con Gemini, protección de correcciones manuales y Cron.
 - Modelo Prisma ampliado (Venue, VenueImage y SyncRun), con migración SQL aditiva preparada y tests automatizados.
@@ -70,3 +71,7 @@ Trabajamos incrementalmente sobre `main` con servicios gratuitos, pruebas y camb
 ---
 
 **SALIMO. — ¿Salimo? Encontrá dónde.**
+
+### Búsqueda de direcciones
+
+El administrador utiliza un buscador de direcciones bajo demanda (sin autocompletado) mediante el servicio público Nominatim de OpenStreetMap. La consulta está limitada al área de Tucumán y protegida por HTTP Basic. Para respetar el máximo de **1 solicitud por segundo a nivel aplicación**, las búsquedas usan un bloqueo transaccional global de PostgreSQL; solicitudes simultáneas pueden responder HTTP 429 para reintentar. La búsqueda no publica información ni modifica establecimientos: la ubicación se guarda únicamente al presionar **Guardar establecimiento**. Es necesario verificar cada punto encontrado. Se aplican las [condiciones de Nominatim](https://operations.osmfoundation.org/policies/nominatim/); si aumenta el uso, cambiar de proveedor.

@@ -25,6 +25,22 @@ test("web pública sin autenticación y administración protegida", async () => 
   assert.equal((await request("/api/public/venues", "GET", undefined, null)).status, 200);
 });
 
+test("buscador de direcciones protegido y con validaciones", async () => {
+  const unauth = await request("/api/admin/geocode?q=M%C3%A9xico%20628", "GET", undefined, null);
+  assert.equal(unauth.status, 401);
+
+  const invalid = await request("/api/admin/geocode?q=ab");
+  assert.equal(invalid.status, 400);
+
+  const wrongCity = await request("/api/admin/geocode?q=M%C3%A9xico%20628&city=OtraCiudad");
+  assert.equal(wrongCity.status, 400);
+
+  const crossSite = await fetch(origin + "/api/admin/geocode?q=M%C3%A9xico%20628", {
+    headers: { Authorization: basic, Origin: "https://sitio-externo.example.org" },
+  });
+  assert.equal(crossSite.status, 403);
+});
+
 test("los locales no se publican por defecto y requieren revisión", async () => {
   const name = "Salimo QA " + Date.now();
   const created = await request("/api/venues", "POST", { normalizedName: name, location: "San Martín 123", category: "Bar" });
