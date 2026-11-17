@@ -1,0 +1,179 @@
+/*
+ * SALIMO. — Design tokens v1.0 | 2026-11-17
+ * Identidad: Bento digital + Urbano contemporáneo
+ * Integración: importar en el CSS global de Next.js o adaptar al tema Tailwind existente.
+ * Las fuentes deben cargarse con next/font/google desde Next.js.
+ * No modifica ningún componente por sí solo: tokens + clases optativas prefijadas.
+ */
+
+:root {
+  /* Marca y estados visuales */
+  --salimo-bg: #F5F7FB;
+  --salimo-surface: #FFFFFF;
+  --salimo-ink: #102841;
+  --salimo-navy-surface: #112D48;
+  --salimo-coral: #FF6852;
+  --salimo-coral-deep: #C63E2E;
+  --salimo-coral-soft: #FFF1EC;
+  --salimo-blue: #1769FF;
+  --salimo-blue-deep: #1254CC;
+  --salimo-peach: #FBE8DF;
+  --salimo-muted: #5A6779;
+  --salimo-border: #E0E7EF;
+  --salimo-map-bg: #EAF0F5;
+  --salimo-success: #196B4D;
+  --salimo-danger: #B42318;
+
+  /* Alias semánticos. Cambiar aquí si el tema evoluciona. */
+  --salimo-text: var(--salimo-ink);
+  --salimo-text-secondary: var(--salimo-muted);
+  --salimo-action-primary-bg: var(--salimo-coral);
+  --salimo-action-primary-text: var(--salimo-ink); /* AA: 5.25:1 aprox. */
+  --salimo-action-accent-bg: var(--salimo-blue);
+  --salimo-action-accent-text: #FFFFFF;
+  --salimo-action-inverse-bg: var(--salimo-coral-deep);
+  --salimo-action-inverse-text: #FFFFFF; /* AA: 5.09:1 aprox. */
+
+  /* Fuente. En Next, sustituir por variables de next/font si se prefiere. */
+  --salimo-font-sans: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
+  --salimo-font-editorial: "Instrument Serif", Georgia, serif;
+
+  /* Radios */
+  --salimo-radius-xs: 8px;
+  --salimo-radius-sm: 12px;
+  --salimo-radius-md: 16px;
+  --salimo-radius-lg: 20px;
+  --salimo-radius-card: 24px;
+  --salimo-radius-pill: 9999px;
+
+  /* Espacios */
+  --salimo-space-1: 4px;
+  --salimo-space-2: 8px;
+  --salimo-space-3: 12px;
+  --salimo-space-4: 16px;
+  --salimo-space-6: 24px;
+  --salimo-space-8: 32px;
+  --salimo-space-12: 48px;
+  --salimo-space-16: 64px;
+
+  /* Componentes */
+  --salimo-content-max: 1360px;
+  --salimo-button-height: 48px;
+  --salimo-control-min-touch: 44px;
+  --salimo-shadow-card: 0 10px 28px rgba(16, 40, 65, 0.07), 0 2px 6px rgba(16, 40, 65, 0.03);
+  --salimo-shadow-floating: 0 16px 40px rgba(16, 40, 65, 0.12);
+  --salimo-focus-ring: 0 0 0 3px rgba(23, 105, 255, 0.25);
+  --salimo-transition: 180ms ease;
+}
+
+/* Clases de referencia: usar solo si encajan con el sistema de componentes. */
+.salimo-ui {
+  color: var(--salimo-text);
+  background: var(--salimo-bg);
+  font-family: var(--salimo-font-sans);
+}
+
+.salimo-container {
+  width: min(100% - 40px, var(--salimo-content-max));
+  margin-inline: auto;
+}
+
+.salimo-card {
+  background: var(--salimo-surface);
+  border: 1px solid var(--salimo-border);
+  border-radius: var(--salimo-radius-card);
+  box-shadow: var(--salimo-shadow-card);
+}
+
+.salimo-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--salimo-button-height);
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--salimo-radius-md);
+  font: 700 14px/1.2 var(--salimo-font-sans);
+  cursor: pointer;
+  transition: background-color var(--salimo-transition), transform var(--salimo-transition), box-shadow var(--salimo-transition);
+}
+
+.salimo-button--coral {
+  background: var(--salimo-action-primary-bg);
+  color: var(--salimo-action-primary-text);
+}
+
+.salimo-button--coral:hover { background: #FF806C; }
+
+.salimo-button--coral-white {
+  background: var(--salimo-action-inverse-bg);
+  color: var(--salimo-action-inverse-text);
+}
+
+.salimo-button--coral-white:hover { background: #A93225; }
+
+.salimo-button--blue {
+  background: var(--salimo-action-accent-bg);
+  color: var(--salimo-action-accent-text);
+}
+
+.salimo-button--blue:hover { background: var(--salimo-blue-deep); }
+
+.salimo-button--outline {
+  background: var(--salimo-surface);
+  border-color: var(--salimo-border);
+  color: var(--salimo-ink);
+}
+
+.salimo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: var(--salimo-surface);
+  color: var(--salimo-ink);
+  border: 1px solid var(--salimo-border);
+  border-radius: var(--salimo-radius-pill);
+  font: 600 13px/1.2 var(--salimo-font-sans);
+}
+
+.salimo-chip[aria-pressed="true"],
+.salimo-chip[data-active="true"] {
+  background: var(--salimo-blue);
+  border-color: var(--salimo-blue);
+  color: #FFFFFF;
+}
+
+.salimo-editorial {
+  color: var(--salimo-coral);
+  font-family: var(--salimo-font-editorial);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.salimo-button:focus-visible,
+.salimo-chip:focus-visible,
+.salimo-ui a:focus-visible,
+.salimo-ui input:focus-visible,
+.salimo-ui select:focus-visible {
+  outline: 2px solid var(--salimo-blue);
+  outline-offset: 3px;
+  box-shadow: var(--salimo-focus-ring);
+}
+
+.salimo-button:disabled,
+.salimo-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 767px) {
+  .salimo-container { width: min(100% - 32px, var(--salimo-content-max)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salimo-ui *, .salimo-ui *::before, .salimo-ui *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
