@@ -41,7 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run test:security
-      - run: node --test tests/map-assets.test.mjs
+      - run: node --test tests/map-assets.test.mjs tests/venue-coordinates.test.mjs
       - run: npm run build
       - run: npx prisma migrate deploy
       - name: Test public pages and admin with isolated PostgreSQL
