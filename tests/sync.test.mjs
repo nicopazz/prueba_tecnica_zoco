@@ -60,3 +60,46 @@ test("IA inválida conserva todos los registros con fallback seguro", () => {
   assert.equal(result.length, rows.length);
   assert.equal(result.find(x => x.osmKey === "osm:node:42").normalizedName, "Norte Bar");
 });
+
+import { findUniqueLegacyMatch, sameLegacyPlace } from "../services/sync-matching.ts";
+
+const previous = (patch = {}) => ({
+  id: "legacy-a", originalName: "Heller",
+  location: "Lat: -26.8168574, Lon: -65.274477",
+  latitude: -26.8168574, longitude: -65.274477, address: null,
+  ...patch,
+});
+const incoming = (patch = {}) => ({
+  osmKey: "osm:node:5", originalName: "Heller",
+  location: "Lat: -26.816860, Lon: -65.274480",
+  latitude: -26.816860, longitude: -65.274480,
+  city: null, address: null, category: "Bar",
+  ...patch,
+});
+
+test("reutiliza el registro antiguo cuando coincide el nombre y el punto", () => {
+  assert.equal(findUniqueLegacyMatch([previous()], incoming()), "legacy-a");
+});
+test("no confunde locales con el mismo nombre pero ubicaciones lejanas", () => {
+  assert.equal(sameLegacyPlace(previous(), incoming({
+    latitude: -26.83, longitude: -65.20,
+  })), false);
+});
+test("si dos candidatos coinciden mantiene un conflicto para revisión", () => {
+  assert.equal(findUniqueLegacyMatch([previous(), previous({id:"legacy-b"})], incoming()), null);
+});
+test("coincide por dirección completa sin coordenadas, nunca por calle sola", () => {
+  const a = previous({ originalName: "Boho Bar", latitude:null, longitude:null, location:"Corrientes 121" });
+  assert.equal(findUniqueLegacyMatch([a], incoming({
+    originalName:"Boho Bar", address:"Corrientes 121", location:"Corrientes 121",
+  })), "legacy-a");
+  assert.equal(findUniqueLegacyMatch([a], incoming({
+    originalName:"Boho Bar", address:"Corrientes", location:"Corrientes",
+  })), null);
+});
+test("puede leer coordenadas heredadas como texto", () => {
+  assert.equal(findUniqueLegacyMatch([previous({latitude:null,longitude:null})], incoming()), "legacy-a");
+});
+test("un nombre distinto no se vincula aunque las coordenadas sean iguales", () => {
+  assert.equal(findUniqueLegacyMatch([previous({originalName:"Otro local"})], incoming()), null);
+});

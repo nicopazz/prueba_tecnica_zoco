@@ -22,8 +22,8 @@ export default function SyncButton({ disabled = false }: { disabled?: boolean })
       setMessage(
         "Sincronizados: " + summary.encontrados +
         ". Nuevos: " + summary.creados +
-        ". Actualizados: " + summary.actualizados +
-        ". Conflictos: " + summary.conflictos
+        ". Actualizados o enriquecidos: " + summary.actualizados +
+        ". Pendientes de revisión por conflicto: " + summary.conflictos
       );
       router.refresh();
     } catch (error) {

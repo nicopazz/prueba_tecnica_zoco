@@ -2,15 +2,28 @@ import { prisma } from "@/lib/prisma";
 import { venueSchemaReady } from "@/lib/public-venues";
 import { fetchOverpass } from "./overpass";
 import { classifyNewVenues } from "./ai";
+import { findUniqueLegacyMatch } from "./sync-matching";
+import type { Prisma } from "@prisma/client";
 
-function samePlace(previous: string, current: string): boolean {
-  if (previous.trim().toLocaleLowerCase() === current.trim().toLocaleLowerCase()) return true;
-  const coordinates = /^Lat:\s*(-?\d+(?:\.\d+)?),\s*Lon:\s*(-?\d+(?:\.\d+)?)$/i;
-  const before = coordinates.exec(previous);
-  const after = coordinates.exec(current);
-  return !!before && !!after &&
-    Math.abs(Number(before[1]) - Number(after[1])) < 0.00015 &&
-    Math.abs(Number(before[2]) - Number(after[2])) < 0.00015;
+function availableOsmFields(
+  found: { latitude?: number | null; longitude?: number | null;
+    city?: string | null; address?: string | null;
+    reviewStatus?: string; publicationStatus?: string },
+  row: { latitude: number | null; longitude: number | null; city: string | null; address: string | null },
+  ready: boolean,
+): Prisma.VenueUpdateInput {
+  if (!ready || found.reviewStatus !== "PENDING" || found.publicationStatus === "PUBLISHED") return {};
+  const data: Prisma.VenueUpdateInput = {};
+  // Sólo completar información ausente: nunca cambiar correcciones manuales.
+  if (found.latitude == null && found.longitude == null &&
+      row.latitude != null && row.longitude != null) {
+    data.latitude = row.latitude;
+    data.longitude = row.longitude;
+    data.coordinateSource = "OSM_CENTER";
+  }
+  if (!found.address && row.address) data.address = row.address;
+  if (!found.city && row.city) data.city = row.city;
+  return data;
 }
 
 export class ConcurrentSyncError extends Error {
@@ -52,12 +65,19 @@ async function executeSync(schemaReady: boolean): Promise<SyncResult> {
     for (const row of rows) {
       const found = await tx.venue.findFirst({
         where: { source: row.osmKey },
-        select: { id: true, originalName: true },
+        select: { id: true, originalName: true,
+          ...(schemaReady ? { latitude: true, longitude: true, address: true, city: true,
+            reviewStatus: true, publicationStatus: true } : {}),
+        },
       });
       if (found) {
-        // Respeta nombre editado, categoría, ubicación y publicación manual.
-        if (found.originalName !== row.originalName) {
-          await tx.venue.update({ where: { id: found.id }, data: { originalName: row.originalName }, select: { id: true } });
+        // Sólo se completan campos faltantes en locales pendientes.
+        const data: Prisma.VenueUpdateInput = {
+          ...(found.originalName !== row.originalName ? { originalName: row.originalName } : {}),
+          ...availableOsmFields(found, row, schemaReady),
+        };
+        if (Object.keys(data).length) {
+          await tx.venue.update({ where: { id: found.id }, data, select: { id: true } });
           count.actualizados++;
         } else count.sinCambios++;
         continue;
@@ -68,18 +88,33 @@ async function executeSync(schemaReady: boolean): Promise<SyncResult> {
           source: "Overpass API",
           originalName: { equals: row.originalName, mode: "insensitive" },
         },
-        select: { id: true, location: true },
-        take: 2,
+        select: { id: true, originalName: true, location: true,
+          ...(schemaReady ? { latitude: true, longitude: true, address: true, city: true,
+            reviewStatus: true, publicationStatus: true } : {}),
+        },
+        take: 20,
       });
-      if (legacy.length === 1 && samePlace(legacy[0].location, row.location)) {
+      const legacyId = findUniqueLegacyMatch(legacy.map(item => ({
+        id: item.id, originalName: item.originalName, location: item.location,
+        latitude: "latitude" in item ? item.latitude as number | null : null,
+        longitude: "longitude" in item ? item.longitude as number | null : null,
+        address: "address" in item ? item.address as string | null : null,
+      })), row);
+      if (legacyId) {
+        const previous = legacy.find(item => item.id === legacyId)!;
         await tx.venue.update({
-          where: { id: legacy[0].id },
-          data: { source: row.osmKey, originalName: row.originalName },
+          where: { id: legacyId },
+          data: {
+            ...availableOsmFields(previous, row, schemaReady),
+            source: row.osmKey,
+            ...(previous.originalName !== row.originalName ? { originalName: row.originalName } : {}),
+          },
           select: { id: true },
         });
         count.actualizados++;
         continue;
       }
+      // Si hay nombres iguales sin prueba suficiente, revisar antes de duplicar.
       if (legacy.length > 0) { count.conflictos++; continue; }
 
       const proposal = classified.get(row.osmKey) ?? {
