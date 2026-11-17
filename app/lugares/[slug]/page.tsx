@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicNav from "../../components/PublicNav";
+import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import { getPublicVenue, venueDisplayName } from "@/lib/public-venues";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -43,7 +44,7 @@ export default async function VenueDetail({ params }: Props) {
           {venue.whatsapp ? <p><a href={`https://wa.me/${venue.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="underline">WhatsApp</a></p> : null}
           {venue.instagram ? <p><a href={venue.instagram} target="_blank" rel="noopener noreferrer" className="underline">Instagram</a></p> : null}
           {venue.website ? <p><a href={venue.website} target="_blank" rel="noopener noreferrer" className="underline">Sitio web</a></p> : null}
-          {venue.latitude !== null && venue.longitude !== null ? (
+          {isWithinSalimoArea(venue.latitude, venue.longitude) ? (
             <a href={`https://www.openstreetmap.org/?mlat=${venue.latitude}&mlon=${venue.longitude}#map=17/${venue.latitude}/${venue.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-block underline">Ver ubicación en OpenStreetMap</a>
           ) : <p className="text-gray-500">Ubicación en el mapa por confirmar</p>}
         </section>

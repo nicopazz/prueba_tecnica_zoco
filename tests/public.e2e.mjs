@@ -53,6 +53,9 @@ test("los locales no se publican por defecto y requieren revisión", async () =>
     assert.equal(listing.data.venues[0].slug, slug);
     assert.equal((await request("/lugares/" + slug, "GET", undefined, null)).status, 200);
 
+    const invalidCoordinates = await request(apiUrl, "PATCH", { latitude: 10, longitude: 3 });
+    assert.equal(invalidCoordinates.status, 400);
+
     const hidden = await request(apiUrl, "PATCH", { publicationStatus: "HIDDEN" });
     assert.equal(hidden.status, 200);
     const afterHide = await request("/api/public/venues?q=" + encodeURIComponent(name), "GET", undefined, null);

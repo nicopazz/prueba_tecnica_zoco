@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isUnsafeCrossOrigin, previewWritesBlocked, verifyAdminAuthorization } from "@/lib/security";
 import { venueSchemaReady } from "@/lib/public-venues";
 import type { Prisma } from "@prisma/client";
+import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 
 type Context = { params: Promise<{ id: string }> };
 const categories = new Set(["Bar", "Pub", "Cervecería", "Boliche"]);
@@ -120,6 +121,9 @@ export async function PATCH(request: Request, { params }: Context) {
     const nextLatitude = data.latitude !== undefined ? data.latitude : current.latitude;
     const nextLongitude = data.longitude !== undefined ? data.longitude : current.longitude;
     if ((nextLatitude === null) !== (nextLongitude === null)) throw new Error("Ingresá ambas coordenadas o dejá ambas vacías");
+    if (nextLatitude !== null && nextLongitude !== null && (fields.latitude !== undefined || fields.longitude !== undefined) && !isWithinSalimoArea(nextLatitude as number, nextLongitude as number)) {
+      throw new Error("Las coordenadas deben corresponder al área de San Miguel de Tucumán o Yerba Buena");
+    }
     if (nextStatus === "PUBLISHED" && (nextReview !== "REVIEWED" || !nextCity || !nextCategory || (!nextAddress && !nextLocation))) {
       throw new Error("Para publicar necesitás revisión, categoría, localidad y ubicación");
     }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
 import PublicMap from "../components/PublicMap";
+import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import { listPublicVenues, venueSchemaReady, validCategories, validCities, venueDisplayName } from "@/lib/public-venues";
 
 type Props = { searchParams: Promise<{ q?: string; city?: string; category?: string }> };
@@ -14,7 +15,7 @@ export default async function VenueMap({ searchParams }: Props) {
     category: typeof params.category === "string" ? params.category : "",
   };
   const [venues, ready] = await Promise.all([listPublicVenues(filters), venueSchemaReady()]);
-  const plotted = venues.filter(v => v.latitude !== null && v.longitude !== null && Number.isFinite(v.latitude) && Number.isFinite(v.longitude));
+  const plotted = venues.filter(v => isWithinSalimoArea(v.latitude, v.longitude));
   const markers = plotted.map(v => ({
     id: v.id, name: venueDisplayName(v), category: v.category || "",
     city: v.city || "", lat: v.latitude!, lng: v.longitude!, href: `/lugares/${v.slug}`,
