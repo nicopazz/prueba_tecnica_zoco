@@ -55,8 +55,9 @@ export function parseOverpass(data: unknown): RawVenue[] {
 // Fuentes gratuitas, utilizadas secuencialmente. El segundo servidor sólo
 // se consulta cuando el primero está caído, no para eludir límites 429.
 const OVERPASS_ENDPOINTS = [
-  { name: "Private.coffee", url: "https://overpass.private.coffee/api/interpreter", timeoutMs: 15000 },
-  { name: "FOSSGIS", url: "https://overpass-api.de/api/interpreter", timeoutMs: 12000 },
+  { name: "Private.coffee", url: "https://overpass.private.coffee/api/interpreter", timeoutMs: 13000 },
+  { name: "FOSSGIS lz4", url: "https://lz4.overpass-api.de/api/interpreter", timeoutMs: 13000 },
+  { name: "FOSSGIS", url: "https://overpass-api.de/api/interpreter", timeoutMs: 11000 },
 ] as const;
 
 export class OverpassServiceError extends Error {
@@ -76,7 +77,9 @@ export class OverpassServiceError extends Error {
 }
 
 export async function fetchOverpass(fetcher: typeof fetch = fetch): Promise<RawVenue[]> {
-  const query = '[out:json][timeout:20];nwr["amenity"~"^(bar|pub)$"](-26.85,-65.30,-26.75,-65.15);out center;';
+  // Consultas explícitas para evitar diferencias de parsers con regex.
+  const bounds = "(-26.85,-65.30,-26.75,-65.15)";
+  const query = `[out:json][timeout:18];(nwr["amenity"="bar"]${bounds};nwr["amenity"="pub"]${bounds};);out center;`;
   const contact = (process.env.OVERPASS_CONTACT || "").replace(/[\r\n]/g, "").slice(0, 120);
   const userAgent = "SALIMO/1.0 (+https://salimo-tucuman.vercel.app/fuentes" +
     (contact ? "; " + contact : "") + ")";
@@ -106,10 +109,23 @@ export async function fetchOverpass(fetcher: typeof fetch = fetch): Promise<RawV
         );
       }
       if (response.status === 400 || response.status === 406) {
-        throw new OverpassServiceError(
-          "INVALID_QUERY",
-          "El servicio de OpenStreetMap rechazó la consulta. Revisá su configuración.",
-        );
+        // 400 no siempre significa una consulta mal formada: algunos proxies
+        // contestan 400/406 ante un fallo transitorio. Leer el texto permite
+        // distinguir un error de sintaxis real de un rechazo del proveedor.
+        const body = typeof response.text === "function"
+          ? (await response.text()).slice(0, 4000) : "";
+        const parseError = /(?:parse error|static error|Error:\\s*line\\s*\\d+|syntax error)/i.test(body);
+        if (parseError) {
+          console.error("Consulta Overpass inválida en", endpoint.name, body.replace(/<[^>]*>/g, " ").slice(0, 350));
+          throw new OverpassServiceError(
+            "INVALID_QUERY",
+            "Overpass rechazó la sintaxis de la consulta. Revisar el servidor.",
+          );
+        }
+        console.warn("Servidor Overpass rechazó la solicitud:", endpoint.name,
+          "HTTP " + response.status, body.replace(/<[^>]*>/g, " ").slice(0, 180));
+        problems.push(endpoint.name + ": HTTP " + response.status + " (sin error de sintaxis)");
+        continue;
       }
       if (!response.ok) {
         problems.push(endpoint.name + ": HTTP " + response.status);
@@ -143,7 +159,7 @@ export async function fetchOverpass(fetcher: typeof fetch = fetch): Promise<RawV
   console.warn("Fuentes Overpass no disponibles:", problems.join("; "));
   throw new OverpassServiceError(
     "UNAVAILABLE",
-    "Los servidores de OpenStreetMap no respondieron. No se modificó ningún local; intentá nuevamente más tarde.",
-    60,
+    "No se pudo conectar con los servidores de OpenStreetMap. No se modificó ningún local. Probá nuevamente más tarde.",
+    120,
   );
 }

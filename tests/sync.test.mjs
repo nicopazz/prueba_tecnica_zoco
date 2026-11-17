@@ -115,7 +115,7 @@ test("consulta el servidor alternativo cuando el primero devuelve HTTP 502", asy
   assert.equal(venues.length, 3);
   assert.equal(calls.length, 2);
   assert.ok(calls[0].includes("overpass.private.coffee"));
-  assert.ok(calls[1].includes("overpass-api.de"));
+  assert.ok(calls[1].includes("lz4.overpass-api.de"));
 });
 
 test("usa alternativa si un servidor supera el tiempo de respuesta", async () => {
@@ -138,7 +138,7 @@ test("la saturación simultánea informa error recuperable sin importar registro
   };
   await assert.rejects(fetchOverpass(fakeFetch),
     error => error instanceof OverpassServiceError && error.reason === "UNAVAILABLE");
-  assert.equal(attempted, 2);
+  assert.equal(attempted, 3);
 });
 
 test("no salta a otro servidor para evadir HTTP 429", async () => {
@@ -161,4 +161,44 @@ test("si Overpass devuelve remark de timeout por HTTP 200, se usa el respaldo", 
   const venues = await fetchOverpass(fakeFetch);
   assert.equal(venues.length, 3);
   assert.equal(attempted, 2);
+});
+
+test("un proxy con HTTP 400 sin error de sintaxis permite otro servidor", async () => {
+  let count = 0;
+  const fakeFetch = async () => {
+    count++;
+    if (count === 1) return {
+      status: 400, ok: false, text: async () => "<html>Bad Request: Temporary proxy error</html>",
+    };
+    return { status: 200, ok: true, text: async () => JSON.stringify(sample) };
+  };
+  const venues = await fetchOverpass(fakeFetch);
+  assert.equal(venues.length, 3);
+  assert.equal(count, 2);
+});
+
+test("error verdadero de sintaxis en Overpass detiene solicitudes", async () => {
+  let count = 0;
+  const fakeFetch = async () => {
+    count++;
+    return {
+      status: 400, ok: false,
+      text: async () => '<p><strong>Error</strong>: line 1: parse error: \\';\\' expected</p>',
+    };
+  };
+  await assert.rejects(fetchOverpass(fakeFetch),
+    e => e instanceof OverpassServiceError && e.reason === "INVALID_QUERY");
+  assert.equal(count, 1);
+});
+
+test("consulta de OSM usa unión de bar y pub sin expresiones regulares", async () => {
+  let submitted = "";
+  const fakeFetch = async (_url, opts) => {
+    submitted = opts.body.get("data");
+    return { status: 200, ok: true, text: async () => JSON.stringify(sample) };
+  };
+  await fetchOverpass(fakeFetch);
+  assert.ok(submitted.includes('nwr["amenity"="bar"]'));
+  assert.ok(submitted.includes('nwr["amenity"="pub"]'));
+  assert.ok(!submitted.includes('~"^(bar|pub)$"'));
 });
