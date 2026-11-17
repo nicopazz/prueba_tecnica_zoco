@@ -48,6 +48,12 @@ test("los locales no se publican por defecto y requieren revisión", async () =>
   const id = created.data.data.id;
   const apiUrl = "/api/admin/venues/" + id;
   try {
+    const reviewPage = await request("/admin/revision?q=" + encodeURIComponent(name));
+    assert.equal(reviewPage.status, 200);
+    assert.ok(reviewPage.body.includes(name), "El local nuevo debe aparecer en revisión");
+    assert.ok(reviewPage.body.includes("Falta localidad"), "Debe indicar los datos faltantes");
+    assert.ok(reviewPage.body.includes("Abrir ficha"), "Debe enlazar a la edición");
+
     const draft = await request("/api/public/venues?q=" + encodeURIComponent(name), "GET", undefined, null);
     assert.equal(draft.data.count, 0);
 
@@ -68,6 +74,9 @@ test("los locales no se publican por defecto y requieren revisión", async () =>
     assert.equal(listing.data.count, 1);
     assert.equal(listing.data.venues[0].slug, slug);
     assert.equal((await request("/lugares/" + slug, "GET", undefined, null)).status, 200);
+    const publishedReview = await request("/admin/revision?estado=publicados&q=" + encodeURIComponent(name));
+    assert.equal(publishedReview.status, 200);
+    assert.ok(publishedReview.body.includes(name), "El publicado debe poder localizarse en el filtro de publicados");
 
     const invalidCoordinates = await request(apiUrl, "PATCH", { latitude: 10, longitude: 3 });
     assert.equal(invalidCoordinates.status, 400);

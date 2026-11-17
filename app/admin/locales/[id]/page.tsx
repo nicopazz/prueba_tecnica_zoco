@@ -4,9 +4,14 @@ import { prisma } from "@/lib/prisma";
 import AdminVenueEditor from "@/app/components/AdminVenueEditor";
 import { venueSchemaReady } from "@/lib/public-venues";
 
-type Props = { params: Promise<{ id: string }> };
-export default async function EditVenue({ params }: Props) {
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ volver?: string }>;
+};
+export default async function EditVenue({ params, searchParams }: Props) {
   const { id } = await params;
+  const { volver } = await searchParams;
+  const returnTo = volver === "revision" ? "/admin/revision" : "/admin/locales";
   const ready = await venueSchemaReady();
   const basicSelect = {
     id: true, normalizedName: true, originalName: true,
@@ -27,9 +32,9 @@ export default async function EditVenue({ params }: Props) {
   if (!venue) notFound();
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-5 py-9">
-      <Link href="/admin/locales" className="text-sm underline">Volver a locales</Link>
+      <Link href={returnTo} className="text-sm underline">{volver === "revision" ? "Volver a revisión" : "Volver a locales"}</Link>
       <h1 className="text-3xl font-bold">Editar establecimiento</h1>
-      <AdminVenueEditor schemaReady={ready} venue={venue} />
+      <AdminVenueEditor schemaReady={ready} venue={venue} returnTo={returnTo} />
     </main>
   );
 }

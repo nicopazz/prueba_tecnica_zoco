@@ -10,6 +10,7 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 - Web pública: Inicio (`/`), Explorar (`/explorar`), Mapa (`/mapa`), fichas (`/lugares/[slug]`) y atribuciones (`/fuentes`).
 - Búsqueda y filtros por localidad y categoría, reutilizados en el mapa.
 - Área administrativa privada en `/admin` con panel, CRUD, revisión, historial y configuración.
+- Bandeja de revisión con búsqueda, filtros de estado y listado de datos faltantes, para publicar fichas de forma manual y controlada.
 - En el administrador, la ubicación se elige buscando una dirección o haciendo clic/arrastrando un pin sobre el mapa (coordenadas guardadas automáticamente).
 - Publicación controlada: solo se muestran locales revisados y publicados.
 - Sincronización OSM por Overpass, clasificación opcional con Gemini, protección de correcciones manuales y Cron.

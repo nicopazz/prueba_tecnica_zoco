@@ -28,7 +28,7 @@ type EditableVenue = {
   images?: Array<{ id: string; imageUrl: string; alt: string | null; attribution: string | null; license: string | null }>;
 };
 
-export default function AdminVenueEditor({ venue, schemaReady }: { venue?: EditableVenue; schemaReady: boolean }) {
+export default function AdminVenueEditor({ venue, schemaReady, returnTo = "/admin/locales" }: { venue?: EditableVenue; schemaReady: boolean; returnTo?: "/admin/locales" | "/admin/revision" }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -98,7 +98,7 @@ export default function AdminVenueEditor({ venue, schemaReady }: { venue?: Edita
           if (!detail.ok || !payload.success) throw new Error(payload.error || "Local creado; no se pudieron completar sus datos");
         }
       }
-      router.push("/admin/locales");
+      router.push(returnTo);
       router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Error al guardar"); }
     finally { setSaving(false); }
