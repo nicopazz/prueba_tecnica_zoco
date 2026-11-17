@@ -183,7 +183,7 @@ test("error verdadero de sintaxis en Overpass detiene solicitudes", async () => 
     count++;
     return {
       status: 400, ok: false,
-      text: async () => '<p><strong>Error</strong>: line 1: parse error: \\';\\' expected</p>',
+      text: async () => "<p>Error: line 1: parse error: semicolon expected</p>",
     };
   };
   await assert.rejects(fetchOverpass(fakeFetch),

@@ -114,7 +114,7 @@ export async function fetchOverpass(fetcher: typeof fetch = fetch): Promise<RawV
         // distinguir un error de sintaxis real de un rechazo del proveedor.
         const body = typeof response.text === "function"
           ? (await response.text()).slice(0, 4000) : "";
-        const parseError = /(?:parse error|static error|Error:\\s*line\\s*\\d+|syntax error)/i.test(body);
+        const parseError = /parse error|static error|error:\s*line\s*\d+|syntax error/i.test(body);
         if (parseError) {
           console.error("Consulta Overpass inválida en", endpoint.name, body.replace(/<[^>]*>/g, " ").slice(0, 350));
           throw new OverpassServiceError(
