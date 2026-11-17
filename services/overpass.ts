@@ -60,13 +60,18 @@ const OVERPASS_ENDPOINTS = [
 ] as const;
 
 export class OverpassServiceError extends Error {
+  readonly reason: "UNAVAILABLE" | "RATE_LIMITED" | "INVALID_QUERY";
+  readonly retryAfterSeconds: number;
+
   constructor(
-    public readonly reason: "UNAVAILABLE" | "RATE_LIMITED" | "INVALID_QUERY",
+    reason: "UNAVAILABLE" | "RATE_LIMITED" | "INVALID_QUERY",
     message: string,
-    public readonly retryAfterSeconds = 60,
+    retryAfterSeconds = 60,
   ) {
     super(message);
     this.name = "OverpassServiceError";
+    this.reason = reason;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
