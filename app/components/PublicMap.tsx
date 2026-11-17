@@ -71,7 +71,7 @@ export default function PublicMap({ venues }: { venues: MapVenue[] }) {
       css.id = STYLES_ID;
       css.rel = "stylesheet";
       css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      css.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyo8NL6Y7B3QN8=";
+      css.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
       css.crossOrigin = "anonymous";
       document.head.appendChild(css);
     }
