@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseOverpass } from "../services/overpass.ts";
+import { parseOverpass, fetchOverpass, OverpassServiceError } from "../services/overpass.ts";
 import { applyAiSuggestions } from "../services/ai.ts";
 
 const sample = {
@@ -102,4 +102,63 @@ test("puede leer coordenadas heredadas como texto", () => {
 });
 test("un nombre distinto no se vincula aunque las coordenadas sean iguales", () => {
   assert.equal(findUniqueLegacyMatch([previous({originalName:"Otro local"})], incoming()), null);
+});
+
+test("consulta el servidor alternativo cuando el primero devuelve HTTP 502", async () => {
+  const calls = [];
+  const fakeFetch = async (url) => {
+    calls.push(url);
+    if (calls.length === 1) return { ok: false, status: 502, headers: new Headers() };
+    return { ok: true, status: 200, text: async () => JSON.stringify(sample) };
+  };
+  const venues = await fetchOverpass(fakeFetch);
+  assert.equal(venues.length, 3);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].includes("overpass.private.coffee"));
+  assert.ok(calls[1].includes("overpass-api.de"));
+});
+
+test("usa alternativa si un servidor supera el tiempo de respuesta", async () => {
+  let attempted = 0;
+  const fakeFetch = async () => {
+    attempted++;
+    if (attempted === 1) throw new DOMException("Timeout", "TimeoutError");
+    return { ok: true, status: 200, text: async () => JSON.stringify(sample) };
+  };
+  const venues = await fetchOverpass(fakeFetch);
+  assert.equal(venues.length, 3);
+  assert.equal(attempted, 2);
+});
+
+test("la saturación simultánea informa error recuperable sin importar registros", async () => {
+  let attempted = 0;
+  const fakeFetch = async () => {
+    attempted++;
+    return { ok: false, status: 503, headers: new Headers() };
+  };
+  await assert.rejects(fetchOverpass(fakeFetch),
+    error => error instanceof OverpassServiceError && error.reason === "UNAVAILABLE");
+  assert.equal(attempted, 2);
+});
+
+test("no salta a otro servidor para evadir HTTP 429", async () => {
+  let attempted = 0;
+  const fakeFetch = async () => {
+    attempted++;
+    return { ok: false, status: 429, headers: new Headers({ "retry-after": "90" }) };
+  };
+  await assert.rejects(fetchOverpass(fakeFetch),
+    error => error instanceof OverpassServiceError && error.reason === "RATE_LIMITED" && error.retryAfterSeconds === 90);
+  assert.equal(attempted, 1);
+});
+
+test("si Overpass devuelve remark de timeout por HTTP 200, se usa el respaldo", async () => {
+  let attempted = 0;
+  const fakeFetch = async () => {
+    attempted++;
+    return { ok: true, status: 200, text: async () => JSON.stringify(attempted === 1 ? { remark: "runtime error: Query timed out" } : sample) };
+  };
+  const venues = await fetchOverpass(fakeFetch);
+  assert.equal(venues.length, 3);
+  assert.equal(attempted, 2);
 });

@@ -52,26 +52,93 @@ export function parseOverpass(data: unknown): RawVenue[] {
   return [...result.values()].sort((a, b) => a.osmKey.localeCompare(b.osmKey));
 }
 
-export async function fetchOverpass(): Promise<RawVenue[]> {
-  const query = '[out:json][timeout:25];nwr["amenity"~"^(bar|pub)$"](-26.85,-65.30,-26.75,-65.15);out center;';
-  const response = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "User-Agent": "SALIMO-Sync/2.0 (" + (process.env.OVERPASS_CONTACT || "contact-not-configured") + ")",
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      Accept: "application/json",
-    },
-    body: new URLSearchParams({ data: query }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(28000),
-  });
-  if (!response.ok) throw new Error("Overpass respondió HTTP " + response.status);
-  const text = await response.text();
-  if (text.length > 2_000_000) throw new Error("Respuesta Overpass demasiado grande.");
-  let payload: unknown;
-  try { payload = JSON.parse(text); }
-  catch { throw new Error("Respuesta JSON inválida de Overpass."); }
-  const rows = parseOverpass(payload);
-  if (rows.length > 200) throw new Error("Hay más de 200 resultados: revisá el área de importación.");
-  return rows;
+// Fuentes gratuitas, utilizadas secuencialmente. El segundo servidor sólo
+// se consulta cuando el primero está caído, no para eludir límites 429.
+const OVERPASS_ENDPOINTS = [
+  { name: "Private.coffee", url: "https://overpass.private.coffee/api/interpreter", timeoutMs: 15000 },
+  { name: "FOSSGIS", url: "https://overpass-api.de/api/interpreter", timeoutMs: 12000 },
+] as const;
+
+export class OverpassServiceError extends Error {
+  constructor(
+    public readonly reason: "UNAVAILABLE" | "RATE_LIMITED" | "INVALID_QUERY",
+    message: string,
+    public readonly retryAfterSeconds = 60,
+  ) {
+    super(message);
+    this.name = "OverpassServiceError";
+  }
+}
+
+export async function fetchOverpass(fetcher: typeof fetch = fetch): Promise<RawVenue[]> {
+  const query = '[out:json][timeout:20];nwr["amenity"~"^(bar|pub)$"](-26.85,-65.30,-26.75,-65.15);out center;';
+  const contact = (process.env.OVERPASS_CONTACT || "").replace(/[\r\n]/g, "").slice(0, 120);
+  const userAgent = "SALIMO/1.0 (+https://salimo-tucuman.vercel.app/fuentes" +
+    (contact ? "; " + contact : "") + ")";
+  const problems: string[] = [];
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const response = await fetcher(endpoint.url, {
+        method: "POST",
+        headers: {
+          "User-Agent": userAgent,
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Accept: "application/json",
+        },
+        body: new URLSearchParams({ data: query }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(endpoint.timeoutMs),
+      });
+
+      // No usar otro servidor para esquivar una limitación explícita.
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get("retry-after"));
+        throw new OverpassServiceError(
+          "RATE_LIMITED",
+          "OpenStreetMap está limitando las consultas. Probá nuevamente más tarde.",
+          Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 3600) : 120,
+        );
+      }
+      if (response.status === 400 || response.status === 406) {
+        throw new OverpassServiceError(
+          "INVALID_QUERY",
+          "El servicio de OpenStreetMap rechazó la consulta. Revisá su configuración.",
+        );
+      }
+      if (!response.ok) {
+        problems.push(endpoint.name + ": HTTP " + response.status);
+        continue;
+      }
+
+      const body = await response.text();
+      if (body.length > 2_000_000) {
+        throw new OverpassServiceError("INVALID_QUERY", "Overpass devolvió demasiados registros.");
+      }
+      let payload: unknown;
+      try { payload = JSON.parse(body); }
+      catch { problems.push(endpoint.name + ": JSON inválido"); continue; }
+
+      // Algunos servidores devuelven HTTP 200 con un remark de timeout.
+      if (object(payload) && typeof payload.remark === "string" && payload.remark.trim()) {
+        problems.push(endpoint.name + ": error de Overpass");
+        continue;
+      }
+      const rows = parseOverpass(payload);
+      if (rows.length > 200) {
+        throw new OverpassServiceError("INVALID_QUERY", "Hay más de 200 resultados: revisá el área de importación.");
+      }
+      return rows;
+    } catch (error) {
+      if (error instanceof OverpassServiceError && error.reason !== "UNAVAILABLE") throw error;
+      problems.push(endpoint.name + ": " + (error instanceof Error ? error.name : "Error de red"));
+    }
+  }
+
+  console.warn("Fuentes Overpass no disponibles:", problems.join("; "));
+  throw new OverpassServiceError(
+    "UNAVAILABLE",
+    "Los servidores de OpenStreetMap no respondieron. No se modificó ningún local; intentá nuevamente más tarde.",
+    60,
+  );
 }

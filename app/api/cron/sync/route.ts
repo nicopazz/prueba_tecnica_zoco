@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyCronAuthorization } from "@/lib/security";
 import { runSync, ConcurrentSyncError } from "@/services/sync";
+import { OverpassServiceError } from "@/services/overpass";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -19,10 +20,17 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const busy = error instanceof ConcurrentSyncError;
+    const overpass = error instanceof OverpassServiceError ? error : null;
     console.error("Error ejecutando el cron:", error);
     return NextResponse.json({
       success: false,
-      error: busy ? error.message : "No se pudo completar la sincronización programada.",
-    }, { status: busy ? 409 : 503, headers: { "Cache-Control": "no-store" } });
+      error: busy ? error.message : overpass?.message || "No se pudo completar la sincronización programada.",
+    }, {
+      status: busy ? 409 : overpass?.reason === "RATE_LIMITED" ? 429 : 503,
+      headers: {
+        "Cache-Control": "no-store",
+        ...(overpass ? { "Retry-After": String(overpass.retryAfterSeconds) } : {}),
+      },
+    });
   }
 }
