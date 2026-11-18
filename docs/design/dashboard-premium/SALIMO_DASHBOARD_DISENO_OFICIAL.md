@@ -24,9 +24,9 @@ SALIMO. combina **70 % Bento digital y 30 % urbano contemporáneo**. En la admin
 
 | Prioridad | Archivo | Qué preservar |
 |---|---|---|
-| **1 — Principal** | `referencias/01-dashboard-resumen.png` | Sidebar azul noche, encabezado superior, cuatro KPIs, gráfico horizontal de categorías, mapa, actividad reciente y panel de revisión |
-| **2 — Complementario** | `referencias/02-dashboard-responsive-y-gestion.png` | Responsive móvil, tabla de establecimientos, edición de registros y proporciones de las tarjetas |
-| **3 — Complementario** | `referencias/03-analitica-y-fichas.png` | Densidad de datos, gráficos, listado de locales, ficha de local y tratamiento de imágenes |
+| **1 — Principal** | `referencias/01-dashboard-resumen.webp` | Sidebar azul noche, encabezado superior, cuatro KPIs, gráfico horizontal de categorías, mapa, actividad reciente y panel de revisión |
+| **2 — Complementario** | `referencias/02-dashboard-responsive-y-gestion.webp` | Responsive móvil, tabla de establecimientos, edición de registros y proporciones de las tarjetas |
+| **3 — Complementario** | `referencias/03-analitica-y-fichas.webp` | Densidad de datos, gráficos, listado de locales, ficha de local y tratamiento de imágenes |
 
 **Importante:** no tomar los nombres, mapas, horarios, números, porcentajes o fotografías de estas imágenes como información real. Son ejemplos de diseño generados para visualizar la propuesta.
 
@@ -71,7 +71,7 @@ Esta guía **extiende**, no reemplaza, el documento existente `SALIMO_CONTEXTO_V
 
 ### Desktop — composición prioritaria
 
-Reproducir la lógica del archivo **01-dashboard-resumen.png**:
+Reproducir la lógica del archivo **01-dashboard-resumen.webp**:
 
 1. **Sidebar fija o estable, azul noche**, con logo SALIMO. arriba, menú vertical y una pequeña firma de identidad de Tucumán abajo. Ancho orientativo 228–252 px, con bordes redondeados en el contenedor.
 2. **Barra superior clara**, con breadcrumb `Administración / [sección]`, selector de ámbito cuando exista, búsqueda administrativa solo si funciona y acceso de sesión. No poner elementos simulados.
@@ -228,4 +228,4 @@ Al implementar cada pantalla, comparar lado a lado con la captura de referencia:
 
 ## 10. Instrucción para futuras sesiones de desarrollo
 
-> Trabajamos en SALIMO., guía de bares y cervecerías de Tucumán. Esta carpeta contiene la dirección visual **aprobada** del panel administrativo. Usá `01-dashboard-resumen.png` como referencia principal de composición, `02-dashboard-responsive-y-gestion.png` para móvil, tablas y edición, y `03-analitica-y-fichas.png` para densidad visual y analítica futura. Mantené exactamente la identidad de colores, tipografías, tarjetas Bento, sidebar navy, acentos coral y lenguaje editorial. No reemplaces el diseño por una plantilla genérica. Antes de implementar, revisá código, rutas, datos y componentes existentes. No inventes KPIs, locales ni contenidos; si algo no existe, usá estados vacíos y priorizá las funcionalidades del MVP. Esta guía no autoriza cambios de código por sí sola.
+> Trabajamos en SALIMO., guía de bares y cervecerías de Tucumán. Esta carpeta contiene la dirección visual **aprobada** del panel administrativo. Usá `01-dashboard-resumen.webp` como referencia principal de composición, `02-dashboard-responsive-y-gestion.webp` para móvil, tablas y edición, y `03-analitica-y-fichas.webp` para densidad visual y analítica futura. Mantené exactamente la identidad de colores, tipografías, tarjetas Bento, sidebar navy, acentos coral y lenguaje editorial. No reemplaces el diseño por una plantilla genérica. Antes de implementar, revisá código, rutas, datos y componentes existentes. No inventes KPIs, locales ni contenidos; si algo no existe, usá estados vacíos y priorizá las funcionalidades del MVP. Esta guía no autoriza cambios de código por sí sola.
