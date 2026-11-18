@@ -9,9 +9,9 @@ Este paquete fija cómo debe verse el dashboard administrativo de SALIMO. durant
 - `SALIMO_DASHBOARD_DISENO_OFICIAL.md`: documento maestro, detallado y con criterios de aceptación.
 - `SALIMO_CONTEXTO_CORTO_PARA_CHATGPT.md`: versión compacta para pegar en una conversación con ChatGPT/Codex o en instrucciones de proyecto.
 - `SALIMO_CONTEXTO_VISUAL_BASE.md`: identidad general previamente aprobada para toda SALIMO.
-- `referencias/01-dashboard-resumen.png`: composición base y principal.
-- `referencias/02-dashboard-responsive-y-gestion.png`: responsive, locales, edición.
-- `referencias/03-analitica-y-fichas.png`: analítica, detalle y exploraciones del sistema.
+- `referencias/01-dashboard-resumen.webp`: composición base y principal.
+- `referencias/02-dashboard-responsive-y-gestion.webp`: responsive, locales, edición.
+- `referencias/03-analitica-y-fichas.webp`: analítica, detalle y exploraciones del sistema.
 
 ## Uso durante el desarrollo
 
@@ -21,3 +21,8 @@ Este paquete fija cómo debe verse el dashboard administrativo de SALIMO. durant
 4. Compará visualmente y revisá los criterios de fidelidad de la guía. Adaptá los ejemplos a datos y módulos realmente existentes.
 
 **No se ha modificado ningún repositorio, despliegue, base de datos ni producción al generar este paquete.**
+## Vista previa
+
+![SALIMO. — Dashboard de resumen](referencias/01-dashboard-resumen.webp)
+
+Las imágenes se conservan en este repositorio como WebP optimizado a resolución de 1536 × 1024 px. Son referencias conceptuales, no capturas de una interfaz implementada.
