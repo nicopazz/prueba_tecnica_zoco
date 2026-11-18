@@ -10,9 +10,9 @@
 - Tarjetas Bento 20–24 px de radio, separación ordenada, sombra tenue y bordes sutiles. Íconos lineales homogéneos.
 
 ## Referencias adjuntas
-1. `referencias/01-dashboard-resumen.png` — **referencia principal:** sidebar oscura, topbar, encabezado editorial, cuatro KPIs, categorías, mapa, actividad reciente y CTA de revisión.
-2. `referencias/02-dashboard-responsive-y-gestion.png` — referencia para móvil, tabla de locales y formulario de edición.
-3. `referencias/03-analitica-y-fichas.png` — referencia para analítica futura, densidad visual y detalle de locales.
+1. `referencias/01-dashboard-resumen.webp` — **referencia principal:** sidebar oscura, topbar, encabezado editorial, cuatro KPIs, categorías, mapa, actividad reciente y CTA de revisión.
+2. `referencias/02-dashboard-responsive-y-gestion.webp` — referencia para móvil, tabla de locales y formulario de edición.
+3. `referencias/03-analitica-y-fichas.webp` — referencia para analítica futura, densidad visual y detalle de locales.
 
 ## Páginas del admin (propuesta a contrastar con rutas reales)
 **Resumen, Locales, Mapa, Revisión, Sincronización y Configuración.** Analítica comercial con visitas, búsquedas y clics es futura y solo debe habilitarse con medición real y alcance aprobado. La gestión actual debe reutilizarse, no rehacerse sin motivo.
