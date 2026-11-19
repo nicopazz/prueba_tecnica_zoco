@@ -65,17 +65,16 @@ async function executeSync(schemaReady: boolean): Promise<SyncResult> {
     for (const row of rows) {
       const found = await tx.venue.findFirst({
         where: { source: row.osmKey },
-        select: { id: true, originalName: true,
+        select: { id: true,
           ...(schemaReady ? { latitude: true, longitude: true, address: true, city: true,
             reviewStatus: true, publicationStatus: true } : {}),
         },
       });
       if (found) {
         // Sólo se completan campos faltantes en locales pendientes.
-        const data: Prisma.VenueUpdateInput = {
-          ...(found.originalName !== row.originalName ? { originalName: row.originalName } : {}),
-          ...availableOsmFields(found, row, schemaReady),
-        };
+        // La importación nunca sobreescribe nombres de locales existentes.
+        // Las correcciones de nombres se realizan desde administración.
+        const data: Prisma.VenueUpdateInput = availableOsmFields(found, row, schemaReady);
         if (Object.keys(data).length) {
           await tx.venue.update({ where: { id: found.id }, data, select: { id: true } });
           count.actualizados++;
@@ -107,7 +106,6 @@ async function executeSync(schemaReady: boolean): Promise<SyncResult> {
           data: {
             ...availableOsmFields(previous, row, schemaReady),
             source: row.osmKey,
-            ...(previous.originalName !== row.originalName ? { originalName: row.originalName } : {}),
           },
           select: { id: true },
         });

@@ -13,7 +13,7 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 - Bandeja de revisión con búsqueda, filtros de estado y listado de datos faltantes, para publicar fichas de forma manual y controlada.
 - En el administrador, la ubicación se elige buscando una dirección o haciendo clic/arrastrando un pin sobre el mapa (coordenadas guardadas automáticamente).
 - Publicación controlada: solo se muestran locales revisados y publicados.
-- Sincronización OSM por Overpass, clasificación opcional con Gemini, protección de correcciones manuales y Cron.
+- Importación manual opcional desde OSM/Overpass, clasificación opcional con Gemini y protección de correcciones manuales. La ejecución automática está pausada.
 - Modelo Prisma ampliado (Venue, VenueImage y SyncRun), con migración SQL aditiva preparada y tests automatizados.
 
 **Pendiente de configuración / lanzamiento:**
@@ -36,7 +36,7 @@ cd salimo
 npm ci
 ```
 
-Copiá `.env.example` a `.env`, completá las credenciales sin subirlas al repositorio e iniciá:
+Creá `.env.local` a partir de las variables documentadas, completá las credenciales sin subirlas al repositorio e iniciá:
 
 ```bash
 npx prisma generate
@@ -56,7 +56,7 @@ En Preview las escrituras se bloquean por defecto con `ALLOW_PREVIEW_WRITES` sal
 
 - La web pública es de solo lectura. Las rutas `/admin`, `/api/admin/*` y `/api/venues/*` requieren credenciales HTTP Basic, provisionales para un administrador.
 - `POST /api/sync` requiere `SYNC_API_TOKEN` y `/api/cron/sync` requiere `CRON_SECRET`; las credenciales deben ser distintas.
-- El Cron en `vercel.json` está previsto para las 09:00 UTC (06:00 de Argentina).
+- El Cron diario de Vercel está **pausado** (`vercel.json` no programa ejecuciones). La importación manual se conserva; no usarla hasta verificar la conexión con Overpass.
 - Los archivos de imagen se deben usar con licencia/permiso apropiados.
 - El borrado administrativo ahora archiva sin eliminar físicamente las filas.
 - GitHub Actions ejecuta lint, pruebas, build, migración y pruebas HTTP con PostgreSQL temporal. **No toca Neon**.
