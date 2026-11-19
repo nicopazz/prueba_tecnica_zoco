@@ -1,11 +1,18 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
+import PublicFooter from "../components/PublicFooter";
 import PublicVenueCard from "../components/PublicVenueCard";
-import { listPublicVenues, venueSchemaReady, validCategories, validCities } from "@/lib/public-venues";
+import {
+  listPublicVenues,
+  venueSchemaReady,
+  validCategories,
+  validCities,
+} from "@/lib/public-venues";
 
-type Props = { searchParams: Promise<{ q?: string; city?: string; category?: string }> };
+type Props = {
+  searchParams: Promise<{ q?: string; city?: string; category?: string }>;
+};
 export const dynamic = "force-dynamic";
-
 export default async function Explore({ searchParams }: Props) {
   const raw = await searchParams;
   const filters = {
@@ -13,48 +20,103 @@ export default async function Explore({ searchParams }: Props) {
     city: typeof raw.city === "string" ? raw.city : "",
     category: typeof raw.category === "string" ? raw.category : "",
   };
-  const [venues, ready] = await Promise.all([listPublicVenues(filters), venueSchemaReady()]);
-  const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v));
+  const [venues, ready] = await Promise.all([
+    listPublicVenues(filters),
+    venueSchemaReady(),
+  ]);
+  const query = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => value),
+  );
   return (
-    <>
-      <PublicNav />
-      <main className="mx-auto max-w-6xl space-y-6 px-5 py-9 text-gray-900">
-        <div>
-          <h1 className="text-3xl font-bold">Explorar lugares</h1>
-          <p className="mt-2 text-gray-600">Buscá y filtrá bares, pubs y cervecerías.</p>
+    <div className="public-page">
+      <PublicNav branded active="explorar" />
+      <main className="public-container">
+        <div className="public-page-heading">
+          <p className="public-kicker">Encontrá tu próxima salida</p>
+          <h1>
+            Explorá <em>Tucumán.</em>
+          </h1>
+          <p>
+            Buscá bares, pubs y cervecerías en San Miguel de Tucumán y Yerba
+            Buena.
+          </p>
         </div>
-        <form action="/explorar" className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-3" role="search">
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="search-q">Buscar</label>
-            <input id="search-q" name="q" defaultValue={filters.q} maxLength={70} placeholder="Nombre o dirección" className="w-full rounded-lg border px-3 py-2" />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="search-city">Localidad</label>
-            <select id="search-city" name="city" defaultValue={filters.city} className="w-full rounded-lg border px-3 py-2">
-              <option value="">Todas</option>
-              {validCities.map((city) => <option key={city} value={city}>{city}</option>)}
+        <form action="/explorar" role="search" className="public-filters">
+          <label>
+            Buscar
+            <input
+              name="q"
+              defaultValue={filters.q}
+              maxLength={70}
+              placeholder="Nombre o dirección"
+            />
+          </label>
+          <label>
+            Localidad
+            <select name="city" defaultValue={filters.city}>
+              <option value="">Todas las localidades</option>
+              {validCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
             </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="search-category">Categoría</label>
-            <select id="search-category" name="category" defaultValue={filters.category} className="w-full rounded-lg border px-3 py-2">
-              <option value="">Todas</option>
-              {validCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+          </label>
+          <label>
+            Categoría
+            <select name="category" defaultValue={filters.category}>
+              <option value="">Todas las categorías</option>
+              {validCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
             </select>
-          </div>
-          <div className="flex gap-4 sm:col-span-3">
-            <button type="submit" className="rounded-lg bg-gray-900 px-5 py-2 text-white">Aplicar filtros</button>
-            <Link href="/explorar" className="self-center text-sm underline">Limpiar</Link>
-            <Link href={`/mapa?${query.toString()}`} className="ml-auto self-center text-sm underline">Ver mapa</Link>
-          </div>
+          </label>
+          <button type="submit" className="public-button">
+            Aplicar filtros
+          </button>
+          <Link href="/explorar" className="public-quiet-link">
+            Limpiar
+          </Link>
         </form>
-        <p className="text-sm text-gray-600">{venues.length} locales encontrados{venues.length === 100 ? " (primeros 100)" : ""}</p>
-        {!ready ? <p className="rounded-lg border p-4">El catálogo todavía no está habilitado. Primero revisaremos los locales existentes.</p> : null}
-        {ready && venues.length === 0 ? <p className="rounded-lg border p-4">No hay resultados publicados para estos filtros.</p> : null}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {venues.map((venue) => <PublicVenueCard key={venue.id} venue={venue} />)}
+        <div className="public-results-head">
+          <div>
+            <h2>
+              Lugares para descubrir<span>.</span>
+            </h2>
+            <p>
+              {venues.length}{" "}
+              {venues.length === 1 ? "local encontrado" : "locales encontrados"}
+              {venues.length === 100 ? " (primeros 100)" : ""}
+            </p>
+          </div>
+          <Link href={`/mapa?${query.toString()}`} className="public-map-link">
+            Ver en el mapa ↗
+          </Link>
         </div>
+        {!ready ? (
+          <div className="public-empty">
+            <h3>Estamos preparando el catálogo.</h3>
+            <p>
+              Los lugares aparecerán acá cuando estén publicados y revisados.
+            </p>
+          </div>
+        ) : venues.length === 0 ? (
+          <div className="public-empty">
+            <h3>No hay resultados para esta búsqueda.</h3>
+            <p>Probá con otra categoría, localidad o nombre.</p>
+            <Link href="/explorar">Ver todos los lugares →</Link>
+          </div>
+        ) : (
+          <div className="public-venue-grid">
+            {venues.map((venue) => (
+              <PublicVenueCard key={venue.id} venue={venue} />
+            ))}
+          </div>
+        )}
       </main>
-    </>
+      <PublicFooter />
+    </div>
   );
 }

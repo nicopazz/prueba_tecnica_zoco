@@ -9,7 +9,7 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 **Implementado en código:**
 - Web pública: Inicio (`/`), Explorar (`/explorar`), Mapa (`/mapa`), fichas (`/lugares/[slug]`) y atribuciones (`/fuentes`).
 - Búsqueda y filtros por localidad y categoría, reutilizados en el mapa.
-- Área administrativa privada en `/admin` con panel, CRUD, revisión, historial y configuración.
+- Área administrativa privada en `/admin` con indicadores, mapa, prioridades de revisión y actividad reciente. Locales, Revisión y Sincronizaciones tienen filtros, ordenamiento y paginación del lado del servidor.
 - Bandeja de revisión con búsqueda, filtros de estado y listado de datos faltantes, para publicar fichas de forma manual y controlada.
 - En el administrador, la ubicación se elige buscando una dirección o haciendo clic/arrastrando un pin sobre el mapa (coordenadas guardadas automáticamente).
 - Publicación controlada: solo se muestran locales revisados y publicados.
@@ -17,10 +17,8 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 - Modelo Prisma ampliado (Venue, VenueImage y SyncRun), con migración SQL aditiva preparada y tests automatizados.
 
 **Pendiente de configuración / lanzamiento:**
-- Aplicar y verificar la migración de Neon **después de un respaldo y aislamiento de Preview**. Hasta entonces, el catálogo público permanece vacío y el CRUD original sigue funcionando.
 - Revisar y publicar los establecimientos existentes; completar información confiable.
 - Configurar un almacenamiento gratuito de fotos (Cloudinary). Por ahora se admiten enlaces HTTPS a fotos autorizadas.
-- Diseño visual definitivo en una etapa posterior.
 
 ## Tecnología
 

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
 export const venueSchemaReady = cache(async (): Promise<boolean> => {
+  // En desarrollo se puede recorrer la web pública sin configurar PostgreSQL.
+  if (process.env.NODE_ENV === "development" && !process.env.DATABASE_URL?.trim()) return false;
   try {
     const result = await prisma.$queryRaw<Array<{ ready: boolean }>>`
       SELECT EXISTS (

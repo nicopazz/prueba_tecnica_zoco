@@ -1,7 +1,6 @@
-// VenueModal.tsx
 "use client";
 
-import { useState, useEffect, FormEvent, useRef } from "react";
+import { useState, useEffect, type FormEvent, useRef, useId } from "react";
 
 interface VenueData {
   normalizedName: string;
@@ -12,8 +11,8 @@ interface VenueData {
 interface VenueModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: VenueData) => Promise<void> | void; // puede ser async
-  initialData?: VenueData; // si viene, es edición
+  onSave: (data: VenueData) => Promise<void> | void;
+  initialData?: VenueData;
   title: string;
 }
 
@@ -24,124 +23,131 @@ export default function VenueModal({
   initialData,
   title,
 }: VenueModalProps) {
-  // refs para los campos no controlados
   const normalizedNameRef = useRef<HTMLInputElement>(null);
   const locationRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const id = useId();
 
-  // estado local de envío para deshabilitar botones mientras se guarda
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  // cerrar con Escape
   useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+    const dialog = dialogRef.current;
+    if (!isOpen || !dialog) return;
+    dialog.showModal();
+    return () => dialog.close();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // submit local que espera la promesa de onSave si existe
+  function dismiss() {
+    setError("");
+    dialogRef.current?.close();
+    onClose();
+  }
+
+  function requestDismiss() {
+    if (!isSubmitting) dismiss();
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setError("");
     try {
       const data = {
         normalizedName: normalizedNameRef.current?.value || "",
         location: locationRef.current?.value || "",
         category: categoryRef.current?.value || "Bar",
       };
-      // permito que onSave sea sync o async
       await onSave(data);
-      // si todo OK, cierro
-      onClose();
+      dismiss();
     } catch (err) {
-      // mostrar error simple (podés mejorar con UI)
-      console.error("Error guardando desde modal:", err);
-      alert(err instanceof Error ? err.message : "No se pudo guardar. Reintenta.");
+      setError(err instanceof Error ? err.message : "No se pudo guardar. Volvé a intentar.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // evitar que el click dentro del modal cierre (solo backdrop)
-  const onBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onBackdropClick}
-      aria-modal="true"
-      role="dialog"
+    <dialog ref={dialogRef} className="admin-modal"
+      onClick={(event) => { if (event.target === event.currentTarget) requestDismiss(); }}
+      onCancel={(event) => { event.preventDefault(); requestDismiss(); }}
+      aria-labelledby={id + "-title"}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800">{title}</h2>
+      <div>
+        <div className="admin-modal-header">
+          <h2 id={id + "-title"} className="admin-section-title">{title}</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Local</label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-              defaultValue={initialData?.normalizedName || ""}
-              ref={normalizedNameRef}
-              autoFocus
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="admin-modal-form" aria-busy={isSubmitting}>
+          <fieldset disabled={isSubmitting} className="admin-form-fields">
+            <div>
+              <label htmlFor={id + "-name"}>Nombre del local <span className="admin-field-note">(obligatorio)</span></label>
+              <input
+                id={id + "-name"}
+                type="text"
+                required
+                minLength={2}
+                maxLength={160}
+                className="w-full"
+                defaultValue={initialData?.normalizedName || ""}
+                ref={normalizedNameRef}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación / Dirección</label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-              defaultValue={initialData?.location || ""}
-              ref={locationRef}
-            />
-          </div>
+            <div>
+              <label htmlFor={id + "-location"}>Ubicación o dirección <span className="admin-field-note">(obligatoria)</span></label>
+              <input
+                id={id + "-location"}
+                type="text"
+                required
+                minLength={3}
+                maxLength={250}
+                className="w-full"
+                defaultValue={initialData?.location || ""}
+                ref={locationRef}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-              defaultValue={initialData?.category || "Bar"}
-              ref={categoryRef}
-            >
-              <option value="Bar">Bar</option>
-              <option value="Pub">Pub</option>
-              <option value="Cervecería">Cervecería</option>
-              <option value="Boliche">Boliche</option>
-            </select>
-          </div>
+            <div>
+              <label htmlFor={id + "-category"}>Categoría</label>
+              <select
+                id={id + "-category"}
+                className="w-full"
+                defaultValue={initialData?.category || "Bar"}
+                ref={categoryRef}
+              >
+                <option value="Bar">Bar</option>
+                <option value="Pub">Pub</option>
+                <option value="Cervecería">Cervecería</option>
+                <option value="Boliche">Boliche</option>
+              </select>
+            </div>
+          </fieldset>
 
-          <div className="flex justify-end space-x-3 mt-8">
+          {error ? <p role="alert" className="admin-form-error">{error}</p> : null}
+          <div className="admin-modal-actions">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestDismiss}
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="admin-action-secondary"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50"
+              className="admin-action-primary"
             >
-              {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+              {isSubmitting ? "Guardando…" : "Guardar local"}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }

@@ -1,4 +1,4 @@
-import { isWithinSalimoArea } from "./venue-coordinates";
+import { isWithinSalimoArea } from "./venue-coordinates.ts";
 
 export type ReviewVenue = {
   originalName: string;
@@ -14,14 +14,16 @@ export type ReviewVenue = {
   imageCount: number;
 };
 
-const PUBLIC_CATEGORIES = new Set(["Bar", "Pub", "Cervecería"]);
-const PUBLIC_CITIES = new Set(["San Miguel de Tucumán", "Yerba Buena"]);
+export const reviewCategories = ["Bar", "Pub", "Cervecería"];
+const PUBLIC_CATEGORIES = new Set(reviewCategories);
+export const reviewCities = ["San Miguel de Tucumán", "Yerba Buena"];
+const PUBLIC_CITIES = new Set(reviewCities);
 
 export function reviewChecklist(venue: ReviewVenue): { required: string[]; suggested: string[] } {
   const required: string[] = [];
   const suggested: string[] = [];
   if (!(venue.normalizedName || venue.originalName).trim()) required.push("Falta nombre");
-  if (!venue.category || !PUBLIC_CATEGORIES.has(venue.category)) required.push("Categoría no publicada");
+  if (!venue.category || !PUBLIC_CATEGORIES.has(venue.category)) required.push(venue.category?.trim() ? "Categoría no publicada" : "Falta categoría");
   if (!venue.city || !PUBLIC_CITIES.has(venue.city)) required.push("Falta localidad");
 
   // Una cadena de coordenadas heredada no constituye una dirección legible.

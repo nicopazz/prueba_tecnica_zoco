@@ -1,56 +1,148 @@
 import Link from "next/link";
 import PublicNav from "../components/PublicNav";
+import PublicFooter from "../components/PublicFooter";
 import PublicMap from "../components/PublicMap";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
-import { listPublicVenues, venueSchemaReady, validCategories, validCities, venueDisplayName } from "@/lib/public-venues";
+import {
+  listPublicVenues,
+  venueSchemaReady,
+  validCategories,
+  validCities,
+  venueDisplayName,
+} from "@/lib/public-venues";
 
-type Props = { searchParams: Promise<{ q?: string; city?: string; category?: string }> };
+type Props = {
+  searchParams: Promise<{ q?: string; city?: string; category?: string }>;
+};
 export const dynamic = "force-dynamic";
-
 export default async function VenueMap({ searchParams }: Props) {
-  const params = await searchParams;
+  const raw = await searchParams;
   const filters = {
-    q: typeof params.q === "string" ? params.q : "",
-    city: typeof params.city === "string" ? params.city : "",
-    category: typeof params.category === "string" ? params.category : "",
+    q: typeof raw.q === "string" ? raw.q : "",
+    city: typeof raw.city === "string" ? raw.city : "",
+    category: typeof raw.category === "string" ? raw.category : "",
   };
-  const [venues, ready] = await Promise.all([listPublicVenues(filters), venueSchemaReady()]);
-  const plotted = venues.filter(v => isWithinSalimoArea(v.latitude, v.longitude));
-  const markers = plotted.map(v => ({
-    id: v.id, name: venueDisplayName(v), category: v.category || "",
-    city: v.city || "", lat: v.latitude!, lng: v.longitude!, href: `/lugares/${v.slug}`,
+  const [venues, ready] = await Promise.all([
+    listPublicVenues(filters),
+    venueSchemaReady(),
+  ]);
+  const plotted = venues.filter((v) =>
+    isWithinSalimoArea(v.latitude, v.longitude),
+  );
+  const markers = plotted.map((v) => ({
+    id: v.id,
+    name: venueDisplayName(v),
+    category: v.category || "",
+    city: v.city || "",
+    lat: v.latitude!,
+    lng: v.longitude!,
+    href: `/lugares/${v.slug}`,
   }));
-  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
+  const query = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => value),
+  );
   return (
-    <>
-      <PublicNav />
-      <main className="mx-auto max-w-6xl space-y-5 px-5 py-9 text-gray-900">
-        <h1 className="text-3xl font-bold">Mapa de lugares</h1>
-        <form action="/mapa" className="flex flex-wrap items-end gap-3 rounded-xl border p-4" role="search">
-          <label className="grid flex-1 gap-1 text-sm">Buscar
-            <input name="q" defaultValue={filters.q} maxLength={70} placeholder="Nombre o dirección" className="min-w-36 rounded-lg border px-3 py-2" />
-          </label>
-          <label className="grid gap-1 text-sm">Localidad
-            <select name="city" defaultValue={filters.city} className="rounded-lg border px-3 py-2">
-              <option value="">Todas</option>{validCities.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm">Categoría
-            <select name="category" defaultValue={filters.category} className="rounded-lg border px-3 py-2">
-              <option value="">Todas</option>{validCategories.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </label>
-          <button type="submit" className="rounded-lg bg-gray-900 px-4 py-2 text-white">Filtrar</button>
-          <Link href="/mapa" className="self-center text-sm underline">Limpiar</Link>
-        </form>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p>{markers.length} lugares con ubicación disponible</p>
-          <Link href={`/explorar?${query}`} className="underline">Ver listado</Link>
+    <div className="public-page">
+      <PublicNav branded active="mapa" />
+      <main className="public-container">
+        <div className="public-page-heading">
+          <p className="public-kicker">Explorá por ubicación</p>
+          <h1>
+            La ciudad, <em>en un mapa.</em>
+          </h1>
+          <p>Encontrá lugares publicados con ubicación disponible.</p>
         </div>
-        {!ready ? <p className="rounded-lg border p-3 text-sm">El catálogo y el mapa de locales quedarán habilitados después de la migración y revisión de datos.</p> : null}
-        {ready && markers.length === 0 ? <p className="rounded-lg border p-3 text-sm">No hay locales publicados con coordenadas para estos filtros.</p> : null}
-        <PublicMap venues={markers} />
+        <form action="/mapa" role="search" className="public-filters">
+          <label>
+            Buscar
+            <input
+              name="q"
+              defaultValue={filters.q}
+              maxLength={70}
+              placeholder="Nombre o dirección"
+            />
+          </label>
+          <label>
+            Localidad
+            <select name="city" defaultValue={filters.city}>
+              <option value="">Todas las localidades</option>
+              {validCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Categoría
+            <select name="category" defaultValue={filters.category}>
+              <option value="">Todas las categorías</option>
+              {validCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="public-button public-button-blue">
+            Filtrar mapa
+          </button>
+          <Link href="/mapa" className="public-quiet-link">
+            Limpiar
+          </Link>
+        </form>
+        <div className="map-layout">
+          <section className="map-canvas" aria-label="Mapa de lugares">
+            <PublicMap venues={markers} />
+          </section>
+          <aside className="map-list">
+            <div className="map-list-header">
+              <h2>Lugares en el mapa</h2>
+              <p>
+                {markers.length}{" "}
+                {markers.length === 1
+                  ? "local con ubicación"
+                  : "locales con ubicación"}
+              </p>
+              <Link href={`/explorar?${query.toString()}`}>
+                Ver todos los resultados →
+              </Link>
+            </div>
+            {!ready || plotted.length === 0 ? (
+              <div className="public-empty">
+                <h3>
+                  {ready
+                    ? "No hay lugares en el mapa."
+                    : "Estamos preparando el mapa."}
+                </h3>
+                <p>
+                  {ready
+                    ? "Probá otra búsqueda o zona. Solo aparecen locales publicados con coordenadas."
+                    : "Los locales aparecerán cuando estén publicados y tengan ubicación revisada."}
+                </p>
+              </div>
+            ) : (
+              <div className="map-items">
+                {plotted.map((v) => (
+                  <Link
+                    key={v.id}
+                    href={`/lugares/${v.slug}`}
+                    className="map-item"
+                  >
+                    <span className="map-item-kind">
+                      {v.category || "Local"} · {v.city || "Tucumán"}
+                    </span>
+                    <strong>{venueDisplayName(v)}</strong>
+                    <small>{v.address || v.location}</small>
+                    <span className="map-item-arrow">Ver ficha →</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </aside>
+        </div>
       </main>
-    </>
+      <PublicFooter />
+    </div>
   );
 }

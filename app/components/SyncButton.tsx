@@ -34,17 +34,17 @@ export default function SyncButton({ disabled = false }: { disabled?: boolean })
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="admin-sync-action">
       <button
         type="button"
         onClick={sync}
         disabled={disabled || loading}
         title={disabled ? "Deshabilitado: la base Preview todavía no está aislada" : "Actualizar datos desde OpenStreetMap"}
-        className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm disabled:opacity-50"
+        className="admin-action-secondary"
       >
         {loading ? "Sincronizando..." : "Sincronizar"}
       </button>
-      {message && <p role="status" className="text-xs text-gray-600 max-w-xs text-right">{message}</p>}
+      <p role="status" className="admin-venue-meta">{message}</p>
     </div>
   );
 }

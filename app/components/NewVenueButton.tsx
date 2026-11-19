@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import VenueModal from "./VenueModal";
+import { useListFeedback } from "@/app/admin/locales/list-feedback";
 
 type NewVenueInput = { normalizedName: string; location: string; category: string };
 
 export default function NewVenueButton() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const notify = useListFeedback();
 
   const handleCreate = async (data: NewVenueInput) => {
     const response = await fetch("/api/venues", {
@@ -21,22 +23,24 @@ export default function NewVenueButton() {
       // El modal conserva los campos y muestra el error sin cerrarse.
       throw new Error(result?.error || "No se pudo crear el local. Volvé a intentar.");
     }
+    notify(`Se creó el local ${data.normalizedName}.`);
     router.refresh();
   };
 
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition-colors"
+        className="admin-action-primary"
       >
-        + Nuevo Local
+        Nuevo local
       </button>
       <VenueModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSave={handleCreate}
-        title="Crear Nuevo Local"
+        title="Nuevo local"
       />
     </>
   );

@@ -5,7 +5,7 @@ import { venueDisplayName } from "@/lib/public-venues";
 export default function PublicVenueCard({ venue }: { venue: PublicVenue }) {
   const firstImage = venue.images[0];
   return (
-    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <article className="public-venue-card overflow-hidden rounded-xl border border-gray-200 bg-white">
       {firstImage ? (
         // Se usan imágenes autorizadas; Next Image remoto requiere dominios configurados.
         // eslint-disable-next-line @next/next/no-img-element

@@ -1,15 +1,17 @@
-// VenueRow.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Venue } from "@prisma/client";
+import type { Venue } from "@prisma/client";
+import Icon from "@/app/admin/admin-icon";
+import { VenueStatuses } from "@/app/admin/venue-status";
 import VenueModal from "./VenueModal";
+import { useListFeedback } from "@/app/admin/locales/list-feedback";
 
 type VenueRowData = Pick<Venue,
-  "id" | "originalName" | "normalizedName" | "location" | "category" | "source" |
-  "confidence" | "isActive" | "createdAt" | "updatedAt">;
+  "id" | "originalName" | "normalizedName" | "location" | "category" | "isActive">
+  & Partial<Pick<Venue, "city" | "address" | "reviewStatus" | "publicationStatus">>;
 
 type VenueUpdateData = {
   normalizedName: string;
@@ -17,13 +19,59 @@ type VenueUpdateData = {
   category: string;
 };
 
-export default function VenueRow({ venue }: { venue: VenueRowData }) {
+function positionActions(button: HTMLButtonElement, panel: HTMLDivElement) {
+  const rect = button.getBoundingClientRect();
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+    panel.hidePopover();
+    return;
+  }
+  panel.style.right = Math.max(8, window.innerWidth - rect.right) + "px";
+  const above = rect.bottom + 160 > window.innerHeight && rect.top > 160;
+  panel.style.top = above ? "auto" : rect.bottom + 4 + "px";
+  panel.style.bottom = above ? window.innerHeight - rect.top + 4 + "px" : "auto";
+}
+
+export default function VenueRow({ venue, modified }: { venue: VenueRowData; modified: string }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [actionError, setActionError] = useState("");
   const router = useRouter();
+  const name = venue.normalizedName || venue.originalName;
+  const popoverId = useId();
+  const popup = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const notify = useListFeedback();
+  const [refreshing, startTransition] = useTransition();
+  const busy = isUpdating || refreshing;
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const update = () => {
+      if (trigger.current && popup.current) positionActions(trigger.current, popup.current);
+    };
+    window.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [actionsOpen]);
+
+  function closeActions() {
+    popup.current?.hidePopover();
+    trigger.current?.focus();
+  }
+
+  function saved(message: string) {
+    notify(message);
+    startTransition(() => router.refresh());
+  }
 
   const toggleActiveStatus = async () => {
+    closeActions();
     setIsUpdating(true);
+    setActionError("");
     try {
       const res = await fetch(`/api/venues/${venue.id}`, {
         method: "PATCH",
@@ -31,9 +79,9 @@ export default function VenueRow({ venue }: { venue: VenueRowData }) {
         body: JSON.stringify({ isActive: !venue.isActive }),
       });
       if (!res.ok) throw new Error("No se pudo cambiar el estado");
-      router.refresh();
+      saved(`${name}: ${venue.isActive ? "desactivado" : "activado"}.`);
     } catch {
-      alert("No se pudo cambiar el estado.");
+      setActionError("No se pudo cambiar el estado. Volvé a intentar.");
     } finally {
       setIsUpdating(false);
     }
@@ -41,53 +89,80 @@ export default function VenueRow({ venue }: { venue: VenueRowData }) {
 
   const handleUpdate = async (updatedData: VenueUpdateData) => {
     setIsUpdating(true);
+    setActionError("");
     try {
       const res = await fetch(`/api/venues/${venue.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),
       });
-      if (!res.ok) throw new Error("Error al actualizar");
-      router.refresh();
+      if (!res.ok) {
+        const result = await res.json().catch(() => null);
+        throw new Error(result?.error || "No se pudo guardar. Volvé a intentar.");
+      }
+      saved(`Se guardaron los cambios de ${updatedData.normalizedName}.`);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(`¿Eliminar permanentemente "${venue.normalizedName}"?`)) return;
+  const handleArchive = async () => {
+    if (!window.confirm(`¿Archivar "${name}"? El local dejará de mostrarse en la web pública.`)) return;
+    closeActions();
     setIsUpdating(true);
+    setActionError("");
     try {
       const res = await fetch(`/api/venues/${venue.id}`, { method: "DELETE" });
-      if (res.ok) router.refresh();
-      else alert("No se pudo eliminar el local.");
-    } catch { alert("Error de conexión."); }
+      if (res.ok) saved(`Se archivó ${name}.`);
+      else setActionError("No se pudo archivar el local. Volvé a intentar.");
+    } catch { setActionError("Error de conexión. Volvé a intentar."); }
     finally { setIsUpdating(false); }
   };
 
   return (
-    <tr className={`hover:bg-gray-50 transition-colors ${!venue.isActive ? "opacity-60" : ""}`}>
-      <td className="px-5 py-4">
-        <span className={`rounded-full px-2 text-xs font-semibold ${venue.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-          {venue.isActive ? "Activo" : "Inactivo"}
-        </span>
+    <tr role="row">
+      <td role="cell" className="admin-venue-identity">
+        <p className="admin-venue-name">{name}</p>
+        <p className="admin-venue-meta">{venue.category || "Sin categoría"}</p>
+        {venue.normalizedName && venue.normalizedName !== venue.originalName ? (
+          <p className="admin-venue-original">Original: {venue.originalName}</p>
+        ) : null}
       </td>
-      <td className="px-5 py-4">
-        <p className="text-sm font-medium">{venue.normalizedName || venue.originalName}</p>
-        <p className="text-xs text-gray-500">Original: {venue.originalName}</p>
+      <td role="cell" className="admin-venue-location">
+        <p>{venue.address || venue.location || "Sin ubicación"}</p>
+        {venue.city ? <p className="admin-venue-meta">{venue.city}</p> : null}
       </td>
-      <td className="px-5 py-4 text-sm">{venue.category}</td>
-      <td className="px-5 py-4 text-sm text-gray-600">{venue.location}</td>
-      <td className="whitespace-nowrap px-5 py-4 text-sm">
-        <Link href={`/admin/locales/${venue.id}`} className="mr-3 text-indigo-700 underline">Ficha</Link>
-        <button onClick={() => setIsModalOpen(true)} disabled={isUpdating} className="mr-3 text-indigo-700 underline">Editar</button>
-        <button onClick={toggleActiveStatus} disabled={isUpdating} className="mr-3 underline">{venue.isActive ? "Desactivar" : "Activar"}</button>
-        <button onClick={handleDelete} disabled={isUpdating} className="text-red-600 underline">Eliminar</button>
+      <td role="cell">
+        <VenueStatuses {...venue} />
+      </td>
+      <td role="cell" className="admin-venue-meta"><span className="admin-modified-label">Modificado </span>{modified}</td>
+      <td role="cell" className="admin-venue-actions"><div className="admin-row-actions" role="group" aria-label={`Acciones para ${name}`}>
+        <button type="button" className="admin-action-secondary admin-row-edit" onClick={() => setIsModalOpen(true)} disabled={busy} aria-label={`Editar ${name}`}><Icon name="edit" size={14}/>Editar</button>
+        <button ref={trigger} type="button" popoverTarget={popoverId} disabled={busy} aria-expanded={actionsOpen}
+          className="admin-action-secondary admin-more" aria-label={`Más acciones para ${name}`}>•••</button>
+        <div id={popoverId} ref={popup} popover="auto" className="admin-row-popup" role="group" aria-label={`Acciones adicionales para ${name}`}
+          onToggle={event => setActionsOpen(event.newState === "open")}
+          onBeforeToggle={event => {
+            if (event.newState !== "open" || !trigger.current) return;
+            trigger.current.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+            positionActions(trigger.current, event.currentTarget);
+          }}
+          onBlur={event => {
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current) {
+              event.currentTarget.hidePopover();
+            }
+          }}>
+        <Link className="admin-action-secondary" href={`/admin/locales/${venue.id}`}>Ficha</Link>
+        <button type="button" className="admin-action-secondary" onClick={toggleActiveStatus} disabled={isUpdating}>{venue.isActive ? "Desactivar" : "Activar"}</button>
+        {venue.isActive ? <button type="button" onClick={handleArchive} disabled={isUpdating} className="admin-action-secondary admin-row-danger">Archivar</button> : null}
+        </div>
+        </div>
+        {actionError ? <p role="alert" className="admin-form-error">{actionError}</p> : null}
         <VenueModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleUpdate}
-          initialData={{ normalizedName: venue.normalizedName || "", location: venue.location, category: venue.category || "Bar" }}
+          initialData={{ normalizedName: venue.normalizedName || venue.originalName, location: venue.location, category: venue.category || "Bar" }}
           title="Editar local"
         />
       </td>

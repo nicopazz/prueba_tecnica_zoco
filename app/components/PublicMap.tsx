@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export type MapVenue = { id: string; name: string; category: string; city: string; href: string; lat: number; lng: number };
 type LeafletMap = {
   setView(center: [number, number], zoom: number): LeafletMap;
-  fitBounds(bounds: Array<[number, number]>, options: { padding: [number, number] }): void;
+  fitBounds(bounds: Array<[number, number]>, options: { padding: [number, number]; maxZoom?: number }): void;
   remove(): void;
 };
 type LeafletMarker = {
@@ -13,18 +13,20 @@ type LeafletMarker = {
   bindPopup(content: HTMLElement): LeafletMarker;
 };
 type LeafletFactory = {
-  map(element: HTMLElement): LeafletMap;
-  tileLayer(url: string, options: { maxZoom: number; attribution: string }): { addTo(map: LeafletMap): void };
-  marker(coordinates: [number, number]): LeafletMarker;
+  divIcon(options: { className: string; iconSize: [number, number] }): unknown;
+  map(element: HTMLElement, options?: { scrollWheelZoom: boolean; zoomAnimation: boolean; fadeAnimation: boolean }): LeafletMap;
+  tileLayer(url: string, options: { maxZoom: number; attribution: string }): { addTo(map: LeafletMap): void; on(event: string, callback: () => void): void };
+  marker(coordinates: [number, number], options?: { title: string; alt: string; icon?: unknown }): LeafletMarker;
 };
 
 const SCRIPT_ID = "salimo-leaflet-js";
 const STYLES_ID = "salimo-leaflet-css";
 
-export default function PublicMap({ venues }: { venues: MapVenue[] }) {
+export default function PublicMap({ venues, compact = false }: { venues: MapVenue[]; compact?: boolean }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const [error, setError] = useState("");
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -36,12 +38,19 @@ export default function PublicMap({ venues }: { venues: MapVenue[] }) {
       const leaflet = (window as unknown as { L?: LeafletFactory }).L;
       if (!leaflet) { setError("No se pudo cargar el mapa."); return; }
       try {
-        const map = leaflet.map(container.current).setView([-26.824, -65.222], 12);
+        const motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const map = leaflet.map(container.current, { scrollWheelZoom: !compact, zoomAnimation: motion, fadeAnimation: motion }).setView([-26.824, -65.222], 12);
         mapRef.current = map;
-        leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        const tiles = leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-        }).addTo(map);
+        });
+        let visibleTiles = 0;
+        tiles.on("loading", () => { visibleTiles = 0; });
+        tiles.on("tileload", () => { visibleTiles++; if (!cancelled) setTilesUnavailable(false); });
+        tiles.on("load", () => { if (!cancelled && !visibleTiles) setTilesUnavailable(true); });
+        tiles.addTo(map);
+        const dot = compact ? leaflet.divIcon({ className: "admin-map-point", iconSize: [18, 18] }) : undefined;
         const bounds: Array<[number, number]> = [];
         for (const venue of venues) {
           if (!Number.isFinite(venue.lat) || !Number.isFinite(venue.lng) ||
@@ -57,15 +66,19 @@ export default function PublicMap({ venues }: { venues: MapVenue[] }) {
           link.textContent = "Ver ficha";
           link.style.textDecoration = "underline";
           node.append(title, detail, link);
-          leaflet.marker(coords).addTo(map).bindPopup(node);
+          leaflet.marker(coords, { title: venue.name, alt: venue.name, ...(dot ? { icon: dot } : {}) }).addTo(map).bindPopup(node);
           bounds.push(coords);
         }
         if (bounds.length === 1) map.setView(bounds[0], 15);
-        else if (bounds.length > 1) map.fitBounds(bounds, { padding: [32, 32] });
+        else if (bounds.length > 1) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
         setLoaded(true);
       } catch (e) { setError(e instanceof Error ? e.message : "No se pudo abrir el mapa."); }
     }
 
+    const scriptError = () => {
+      if (!cancelled) setError("No se pudo descargar el mapa. Revisá tu conexión.");
+      document.getElementById(SCRIPT_ID)?.remove();
+    };
     if (!document.getElementById(STYLES_ID)) {
       const css = document.createElement("link");
       css.id = STYLES_ID;
@@ -89,17 +102,26 @@ export default function PublicMap({ venues }: { venues: MapVenue[] }) {
         document.head.appendChild(script);
       }
       script.addEventListener("load", init);
-      script.addEventListener("error", () => { if (!cancelled) setError("No se pudo descargar el mapa. Revisá tu conexión."); });
+      script.addEventListener("error", scriptError);
     }
-    return () => { cancelled = true; mapRef.current?.remove(); mapRef.current = null; };
-  }, [venues]);
+    return () => {
+      cancelled = true;
+      const script = document.getElementById(SCRIPT_ID);
+      script?.removeEventListener("load", init);
+      script?.removeEventListener("error", scriptError);
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, [venues, compact]);
 
   return (
-    <div className="space-y-3">
+    <div className={compact ? "admin-mini-map" : "space-y-3"}>
       {error ? <p role="alert" className="rounded-lg border border-red-200 p-3 text-sm">{error}</p> : null}
       {!loaded && !error ? <p role="status" className="text-sm text-gray-600">Cargando mapa...</p> : null}
-      <div ref={container} className="z-0 w-full overflow-hidden rounded-xl border" style={{ height: "min(65vh, 640px)", minHeight: 360 }} role="application" aria-label="Mapa de establecimientos" />
-      <p className="text-xs text-gray-500">Mapa © OpenStreetMap contributors. Solo se muestran locales publicados con coordenadas revisadas. Los centros geométricos importados pueden ser aproximados.</p>
+      {tilesUnavailable && <p role="status" className="map-tile-error">No se pudo cargar la cartografía de OpenStreetMap.</p>}
+      <div ref={container} className="z-0 w-full overflow-hidden rounded-xl border" style={compact ? undefined : { height: "min(65vh, 640px)", minHeight: 360 }} role="application" aria-label="Mapa de establecimientos" />
+      {!compact && <p className="text-xs text-gray-500">Mapa © OpenStreetMap contributors. Solo se muestran locales publicados con coordenadas revisadas. Los centros geométricos importados pueden ser aproximados.</p>}
+      {compact && !loaded && <small>Cartografía © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></small>}
     </div>
   );
 }

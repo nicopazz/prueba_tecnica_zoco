@@ -1,32 +1,21 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifyAdminAuthorization } from "@/lib/security";
+import { adminEnvironment, adminVisualPreview } from "@/lib/admin-visual-preview";
+import AdminNavigation from "@/app/components/AdminNavigation";
+import ListFeedback from "./locales/list-feedback";
+import "./admin.css";
 
 export const metadata: Metadata = { title: "Administración | SALIMO.", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Protección adicional a proxy.ts: nunca consultar datos privados sin autenticación.
   const h = await headers();
   if (!verifyAdminAuthorization(h.get("authorization"))) notFound();
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="border-b bg-white">
-        <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4" aria-label="Administración">
-          <Link href="/admin" className="text-lg font-bold">SALIMO. · Admin</Link>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link href="/admin">Dashboard</Link>
-            <Link href="/admin/locales">Locales</Link>
-            <Link href="/admin/revision">Revisión</Link>
-            <Link href="/admin/sincronizaciones">Sincronizaciones</Link>
-            <Link href="/admin/configuracion">Configuración</Link>
-            <Link href="/">Web pública</Link>
-          </div>
-        </nav>
-      </header>
-      {children}
-    </div>
-  );
+  const visualPreview = adminVisualPreview();
+  return <div className="admin-workspace"><AdminNavigation environment={adminEnvironment()}/><div id="contenido-admin" tabIndex={-1} className="admin-content">
+    {visualPreview ? <div className="admin-preview-banner" role="status"><strong>Modo de visualización local.</strong> No hay conexión a PostgreSQL. Los datos y las acciones de escritura no están disponibles.</div> : null}
+    <ListFeedback>{children}</ListFeedback>
+  </div></div>;
 }

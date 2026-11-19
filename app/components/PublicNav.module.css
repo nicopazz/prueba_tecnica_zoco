@@ -1,0 +1,86 @@
+.header {
+  background: var(--salimo-surface);
+  border-bottom: 1px solid var(--salimo-border);
+}
+.nav {
+  max-width: 1360px;
+  min-height: 76px;
+  margin: auto;
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.logo {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.logo span {
+  color: var(--salimo-coral);
+}
+.description {
+  border-left: 1px solid var(--salimo-border);
+  padding-left: 24px;
+  font-size: 11px;
+  color: var(--salimo-muted);
+}
+.links {
+  display: flex;
+  gap: 28px;
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 800;
+}
+.links a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.links [aria-current] {
+  text-decoration: underline;
+  text-decoration-color: var(--salimo-coral);
+  text-underline-offset: 10px;
+  text-decoration-thickness: 3px;
+}
+.location {
+  font-size: 12px;
+  border: 1px solid var(--salimo-border);
+  border-radius: 50px;
+  padding: 10px 16px;
+  margin-left: 40px;
+}
+.nav a:focus-visible {
+  outline: 3px solid var(--salimo-blue);
+  outline-offset: 4px;
+}
+@media (max-width: 1050px) {
+  .description {
+    display: none;
+  }
+  .location {
+    margin-left: 0;
+  }
+}
+@media (max-width: 767px) {
+  .nav {
+    min-height: 70px;
+    padding: 12px 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-size: 27px;
+  }
+  .links {
+    gap: 15px;
+    font-size: 12px;
+  }
+  .links a {
+    min-height: 44px;
+  }
+  .location {
+    display: none;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 
 type Position = { latitude: number; longitude: number };
@@ -8,18 +8,19 @@ type AddressCandidate = Position & { name: string };
 type Point = { lat: number; lng: number };
 type LeafletMap = {
   setView(point: [number, number], zoom: number): LeafletMap;
+  getCenter(): Point;
   on(event: "click", listener: (event: { latlng: Point }) => void): LeafletMap;
   remove(): void;
 };
 type LeafletMarker = {
   addTo(map: LeafletMap): LeafletMarker;
-  on(event: "dragend", callback: () => void): LeafletMarker;
+  on(event: "dragstart" | "dragend", callback: () => void): LeafletMarker;
   getLatLng(): Point;
   setLatLng(point: [number, number]): LeafletMarker;
   remove(): void;
 };
 type LeafletLibrary = {
-  map(container: HTMLElement): LeafletMap;
+  map(container: HTMLElement, options: { zoomAnimation: boolean; fadeAnimation: boolean }): LeafletMap;
   tileLayer(url: string, options: { maxZoom: number; attribution: string }): { addTo(map: LeafletMap): void };
   marker(point: [number, number], options: { draggable: boolean; autoPan: boolean }): LeafletMarker;
 };
@@ -32,18 +33,25 @@ type Props = {
   city: string;
   position: Position | null;
   onPositionChange(position: Position | null): void;
+  addressRequired: boolean;
 };
 
-export default function AdminLocationPicker({ address, onAddressChange, city, position, onPositionChange }: Props) {
+export default function AdminLocationPicker({ address, onAddressChange, city, position, onPositionChange, addressRequired }: Props) {
+  const instructionsId = useId();
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
   const onPositionRef = useRef(onPositionChange);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
-  const [candidates, setCandidates] = useState<AddressCandidate[]>([]);
+  const [lookup, setLookup] = useState<{ key: string; pending: boolean; error: string; results: AddressCandidate[] }>();
+  const request = useRef<AbortController | null>(null);
+  const searchKey = JSON.stringify([address.trim(), city]);
+  const currentLookup = lookup?.key === searchKey ? lookup : undefined;
+  const searching = currentLookup?.pending ?? false;
+  const searchError = currentLookup?.error;
+  const candidates = currentLookup?.results ?? [];
+  useEffect(() => () => request.current?.abort(), [searchKey]);
   const [status, setStatus] = useState("");
 
   useEffect(() => { onPositionRef.current = onPositionChange; }, [onPositionChange]);
@@ -53,12 +61,17 @@ export default function AdminLocationPicker({ address, onAddressChange, city, po
     let cancelled = false;
     let script: HTMLScriptElement | null = null;
 
+    const loadFailed = () => {
+      if (!cancelled) setMapError("No se pudo cargar el mapa. Revisá la conexión.");
+      script?.remove();
+    };
     const initialize = () => {
       if (cancelled || !container.current || mapRef.current) return;
       const leaflet = (window as unknown as { L?: LeafletLibrary }).L;
       if (!leaflet) { setMapError("No se pudo cargar Leaflet."); return; }
       try {
-        const map = leaflet.map(container.current);
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const map = leaflet.map(container.current, { zoomAnimation: !reducedMotion, fadeAnimation: !reducedMotion });
         map.setView([-26.824, -65.235], 12);
         leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
@@ -100,13 +113,12 @@ export default function AdminLocationPicker({ address, onAddressChange, city, po
         document.head.appendChild(script);
       }
       script.addEventListener("load", initialize);
-      script.addEventListener("error", () => {
-        if (!cancelled) setMapError("No se pudo descargar Leaflet. Podés reintentar recargando la página.");
-      });
+      script.addEventListener("error", loadFailed);
     }
     return () => {
       cancelled = true;
       script?.removeEventListener("load", initialize);
+      script?.removeEventListener("error", loadFailed);
       mapRef.current?.remove();
       mapRef.current = null;
       markerRef.current = null;
@@ -125,6 +137,8 @@ export default function AdminLocationPicker({ address, onAddressChange, city, po
     const point: [number, number] = [position.latitude, position.longitude];
     if (!markerRef.current) {
       const marker = leaflet.marker(point, { draggable: true, autoPan: true }).addTo(map);
+      let dragOrigin = marker.getLatLng();
+      marker.on("dragstart", () => { dragOrigin = marker.getLatLng(); });
       marker.on("dragend", () => {
         const { lat, lng } = marker.getLatLng();
         if (isWithinSalimoArea(lat, lng)) {
@@ -132,8 +146,7 @@ export default function AdminLocationPicker({ address, onAddressChange, city, po
           setStatus("Pin movido. Guardá el establecimiento para confirmar.");
         } else {
           setStatus("Ese punto está fuera del área admitida.");
-          // Se restaura la posición controlada en el siguiente render.
-          marker.setLatLng(point);
+          marker.setLatLng([dragOrigin.lat, dragOrigin.lng]);
         }
       });
       markerRef.current = marker;
@@ -143,76 +156,102 @@ export default function AdminLocationPicker({ address, onAddressChange, city, po
 
   async function findLocation() {
     if (searching) return;
-    setSearching(true);
-    setSearchError("");
-    setCandidates([]);
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setLookup({ key: searchKey, pending: true, error: "", results: [] });
     setStatus("");
     try {
       const params = new URLSearchParams({ q: address.trim() });
       if (city) params.set("city", city);
-      const response = await fetch("/api/admin/geocode?" + params, { cache: "no-store" });
+      const response = await fetch("/api/admin/geocode?" + params, { cache: "no-store", signal: controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo buscar la dirección.");
       const results = Array.isArray(data.candidates) ? data.candidates as AddressCandidate[] : [];
-      setCandidates(results);
-      if (!results.length) setSearchError("No encontramos esa dirección. Podés elegir el punto manualmente en el mapa.");
+      if (!controller.signal.aborted) setLookup({ key: searchKey, pending: false, results,
+        error: results.length ? "" : "No encontramos esa dirección. Podés elegir el punto manualmente en el mapa." });
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "No se pudo buscar la dirección.");
-    } finally { setSearching(false); }
+      if (!controller.signal.aborted) setLookup({ key: searchKey, pending: false, results: [],
+        error: error instanceof Error && !(error instanceof TypeError) ? error.message : "No se pudo buscar la dirección. Revisá la conexión." });
+    } finally {
+      if (controller.signal.aborted && request.current === controller) setLookup(undefined);
+    }
   }
 
   function choose(candidate: AddressCandidate) {
     if (!isWithinSalimoArea(candidate.latitude, candidate.longitude)) return;
     onPositionChange({ latitude: candidate.latitude, longitude: candidate.longitude });
-    setCandidates([]);
+    setLookup(undefined);
     setStatus("Ubicación seleccionada. Comprobá el pin y guardá el establecimiento.");
   }
 
   return (
-    <section className="space-y-3 sm:col-span-2" aria-label="Selección de ubicación">
-      <div className="space-y-1">
-        <label htmlFor="venue-address" className="block text-sm font-medium">Dirección del establecimiento</label>
+    <section className="admin-location-picker sm:col-span-2" aria-label="Selección de ubicación">
+      <div className="admin-location-search"><div className="space-y-1">
+        <label htmlFor="venue-address" className="block">
+          Dirección del establecimiento {addressRequired ? <span className="admin-field-note">(obligatoria)</span> : null}
+        </label>
         <input id="venue-address" name="address" value={address} onChange={e => onAddressChange(e.target.value)}
-          maxLength={250} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+          required={addressRequired} minLength={addressRequired ? 3 : undefined}
+          maxLength={250} className="w-full"
           placeholder="Ej.: México 628, San Miguel de Tucumán" />
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={findLocation} disabled={searching || address.trim().length < 3}
-          className="rounded-lg border border-gray-400 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50">
+          className="admin-action-secondary">
           {searching ? "Buscando ubicación..." : "Buscar ubicación"}
         </button>
-        <p className="text-xs text-gray-600">Buscá solo al presionar el botón. No hay autocompletado.</p>
+        {address.trim().length < 3 && <p className="admin-venue-meta">Escribí al menos tres caracteres para buscar.</p>}
       </div>
-      {searchError ? <p role="alert" className="text-sm text-red-700">{searchError}</p> : null}
+      {searchError ? <p role="alert" className="admin-form-error">{searchError}</p> : null}
       {candidates.length ? (
-        <div className="space-y-2 rounded-lg border bg-gray-50 p-3">
+        <div className="admin-address-results">
           <p className="text-sm font-semibold">Elegí el resultado correcto:</p>
           {candidates.map((candidate, index) => (
             <button key={index} type="button" onClick={() => choose(candidate)}
-              className="block w-full rounded-lg border bg-white px-3 py-2 text-left text-sm hover:bg-gray-100">
+              className="admin-location-option">
               {candidate.name}
             </button>
           ))}
         </div>
       ) : null}
-      <p className="text-sm font-medium">Seleccioná el punto en el mapa o arrastrá el pin.</p>
-      {mapError ? <p role="alert" className="text-sm text-red-700">{mapError}</p> : null}
-      {!mapLoaded && !mapError ? <p role="status" className="text-sm text-gray-500">Cargando mapa...</p> : null}
-      <div ref={container} role="application" aria-label="Mapa para elegir ubicación"
-        className="relative z-0 w-full overflow-hidden rounded-lg border border-gray-300" style={{ height: 340 }} />
+      </div>
+      <div className="admin-map-picker-body"><p id={instructionsId} className="admin-venue-meta">
+        Elegí un punto o arrastrá el pin. Con el mapa enfocado, movelo con las flechas y presioná Enter para elegir el centro.
+      </p>
+      {mapError ? <p role="alert" className="admin-form-error">{mapError}</p> : null}
+      {!mapLoaded && !mapError ? <p role="status" className="admin-venue-meta">Cargando mapa…</p> : null}
+      <div className="admin-location-frame" hidden={Boolean(mapError)}>
+        <div ref={container} role="application" aria-label="Mapa para elegir ubicación"
+          aria-describedby={instructionsId}
+          tabIndex={mapLoaded ? 0 : undefined}
+          className="admin-location-map"
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.target !== event.currentTarget || !mapRef.current) return;
+            event.preventDefault();
+            const { lat, lng } = mapRef.current.getCenter();
+            if (!isWithinSalimoArea(lat, lng)) {
+              setStatus("Seleccioná un punto dentro de Tucumán.");
+              return;
+            }
+            onPositionChange({ latitude: lat, longitude: lng });
+            setStatus("Pin seleccionado en el mapa. Guardá el establecimiento para confirmar.");
+          }}
+        />
+      </div>
       {position ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+        <div className="flex flex-wrap items-center justify-between gap-2 admin-venue-meta">
           <span>Punto seleccionado: {position.latitude.toFixed(6)}, {position.longitude.toFixed(6)}</span>
-          <button type="button" onClick={() => { onPositionChange(null); setStatus("Punto quitado. Guardá para actualizar el local."); }} className="underline">
+          <button type="button" onClick={() => { onPositionChange(null); setStatus("Punto quitado. Guardá para actualizar el local."); container.current?.focus(); }} className="admin-action-secondary">
             Quitar punto
           </button>
         </div>
-      ) : <p className="text-xs text-gray-600">Sin punto seleccionado. Hacé clic en el mapa para indicar dónde está el local.</p>}
-      {status ? <p role="status" className="text-sm text-gray-700">{status}</p> : null}
-      <p className="text-xs text-gray-500">
+      ) : <p className="admin-venue-meta">Sin punto seleccionado.</p>}
+      <p role="status" className="admin-venue-meta">{status}</p>
+      <p className="admin-venue-meta">
         Ubicación sugerida por © colaboradores de <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>.
         Verificá el punto: una dirección encontrada puede ser aproximada.
-      </p>
+      </p></div>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicNav from "../../components/PublicNav";
+import PublicFooter from "../../components/PublicFooter";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import { getPublicVenue, venueDisplayName } from "@/lib/public-venues";
 
@@ -11,44 +12,121 @@ export default async function VenueDetail({ params }: Props) {
   const venue = await getPublicVenue(slug);
   if (!venue) notFound();
   const name = venueDisplayName(venue);
+  const hasLocation = isWithinSalimoArea(venue.latitude, venue.longitude);
   return (
-    <>
-      <PublicNav />
-      <main className="mx-auto max-w-4xl space-y-7 px-5 py-9 text-gray-900">
-        <Link href="/explorar" className="text-sm underline">Volver a explorar</Link>
-        <header className="space-y-2">
-          <p className="text-sm text-gray-500">{venue.category} · {venue.city || "Tucumán"}</p>
-          <h1 className="text-4xl font-bold">{name}</h1>
-          <p className="text-gray-600">{venue.address || venue.location}</p>
+    <div className="public-page">
+      <PublicNav branded active="ninguno" />
+      <main className="public-container detail-page">
+        <Link href="/explorar" className="public-back">
+          ← Volver a explorar
+        </Link>
+        <header className="detail-heading">
+          <p className="public-kicker">
+            {venue.category || "Lugar"} · {venue.city || "Tucumán"}
+          </p>
+          <h1>{name}</h1>
+          <p>{venue.address || venue.location}</p>
         </header>
-        {venue.images.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {venue.images.map((img) => (
-              <figure key={img.id}>
+        {venue.images.length ? (
+          <div className="detail-gallery">
+            {venue.images.map((img, i) => (
+              <figure
+                key={img.id}
+                className={i === 0 ? "detail-photo-main" : ""}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.imageUrl} alt={img.alt || name} loading="lazy" className="h-56 w-full rounded-lg object-cover" />
-                {img.attribution ? <figcaption className="mt-1 text-xs text-gray-500">{img.attribution}</figcaption> : null}
+                <img
+                  src={img.imageUrl}
+                  alt={img.alt || name}
+                  loading={i === 0 ? "eager" : "lazy"}
+                />
+                {img.attribution ? (
+                  <figcaption>{img.attribution}</figcaption>
+                ) : null}
               </figure>
             ))}
           </div>
-        ) : null}
-        <section className="space-y-2">
-          <h2 className="text-xl font-semibold">Sobre el lugar</h2>
-          <p className="text-gray-700">{venue.description || "Todavía no contamos con una descripción verificada."}</p>
-        </section>
-        <section className="space-y-3 rounded-xl border p-5">
-          <h2 className="text-xl font-semibold">Información</h2>
-          <p><span className="font-semibold">Dirección:</span> {venue.address || venue.location}</p>
-          {venue.openingHours ? <p><span className="font-semibold">Horarios:</span> {typeof venue.openingHours === "string" ? venue.openingHours : "Consultar con el establecimiento"}</p> : <p className="text-gray-500">Horarios no confirmados</p>}
-          {venue.phone ? <p>Teléfono: <a href={`tel:${venue.phone.replace(/[^+0-9]/g, "")}`} className="underline">{venue.phone}</a></p> : null}
-          {venue.whatsapp ? <p><a href={`https://wa.me/${venue.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="underline">WhatsApp</a></p> : null}
-          {venue.instagram ? <p><a href={venue.instagram} target="_blank" rel="noopener noreferrer" className="underline">Instagram</a></p> : null}
-          {venue.website ? <p><a href={venue.website} target="_blank" rel="noopener noreferrer" className="underline">Sitio web</a></p> : null}
-          {isWithinSalimoArea(venue.latitude, venue.longitude) ? (
-            <a href={`https://www.openstreetmap.org/?mlat=${venue.latitude}&mlon=${venue.longitude}#map=17/${venue.latitude}/${venue.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-block underline">Ver ubicación en OpenStreetMap</a>
-          ) : <p className="text-gray-500">Ubicación en el mapa por confirmar</p>}
-        </section>
+        ) : (
+          <div className="detail-no-photo">
+            <span>
+              Las fotos del lugar aparecerán cuando estén verificadas.
+            </span>
+          </div>
+        )}
+        <div className="detail-grid">
+          <section className="detail-panel">
+            <h2>Sobre el lugar</h2>
+            <p>
+              {venue.description ||
+                "Todavía no contamos con una descripción verificada."}
+            </p>
+          </section>
+          <section className="detail-panel">
+            <h2>Información para tu salida</h2>
+            <dl>
+              <div>
+                <dt>Dirección</dt>
+                <dd>{venue.address || venue.location}</dd>
+              </div>
+              {venue.openingHours ? (
+                <div>
+                  <dt>Horarios</dt>
+                  <dd>{venue.openingHours}</dd>
+                </div>
+              ) : null}
+              {venue.phone ? (
+                <div>
+                  <dt>Teléfono</dt>
+                  <dd>
+                    <a href={`tel:${venue.phone.replace(/[^+0-9]/g, "")}`}>
+                      {venue.phone}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className="detail-actions">
+              {venue.whatsapp ? (
+                <a
+                  href={`https://wa.me/${venue.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  WhatsApp ↗
+                </a>
+              ) : null}
+              {venue.instagram ? (
+                <a
+                  href={venue.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Instagram ↗
+                </a>
+              ) : null}
+              {venue.website ? (
+                <a
+                  href={venue.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Sitio web ↗
+                </a>
+              ) : null}
+              {hasLocation ? (
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${venue.latitude}&mlon=${venue.longitude}#map=17/${venue.latitude}/${venue.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver ubicación ↗
+                </a>
+              ) : null}
+            </div>
+          </section>
+        </div>
       </main>
-    </>
+      <PublicFooter />
+    </div>
   );
 }

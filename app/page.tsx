@@ -1,47 +1,283 @@
 import Link from "next/link";
+import Image from "next/image";
+import localFont from "next/font/local";
 import PublicNav from "./components/PublicNav";
 import PublicVenueCard from "./components/PublicVenueCard";
-import { listPublicVenues, venueSchemaReady } from "@/lib/public-venues";
+import PublicMap from "./components/PublicMap";
+import {
+  listPublicVenues,
+  venueSchemaReady,
+  venueDisplayName,
+} from "@/lib/public-venues";
+import { isWithinSalimoArea } from "@/lib/venue-coordinates";
+import styles from "./home.module.css";
+import "../docs/design/salimo-design-tokens.css";
 
+const manrope = localFont({
+  src: "../public/fonts/manrope.ttf",
+  weight: "200 800",
+  variable: "--home-sans",
+  display: "swap",
+});
+const editorial = localFont({
+  src: "../public/fonts/instrument-serif-italic.ttf",
+  weight: "400",
+  style: "italic",
+  variable: "--home-serif",
+  display: "swap",
+});
 export const revalidate = 300;
-export default async function Home() {
-  const [venues, ready] = await Promise.all([listPublicVenues(), venueSchemaReady()]);
+
+function Icon({
+  kind = "arrow",
+}: {
+  kind?: "arrow" | "pin" | "beer" | "search";
+}) {
   return (
-    <>
-      <PublicNav />
-      <main className="mx-auto max-w-6xl space-y-10 px-5 py-10 text-gray-900">
-        <section className="space-y-5">
-          <p className="text-sm font-medium uppercase tracking-wider">San Miguel de Tucumán · Yerba Buena</p>
-          <h1 className="text-4xl font-bold tracking-tight">¿Salimo? Encontrá dónde.</h1>
-          <p className="max-w-2xl text-gray-600">Descubrí bares, pubs y cervecerías para tu próxima salida.</p>
-          <form action="/explorar" className="flex max-w-xl flex-wrap gap-2" role="search">
-            <label htmlFor="home-search" className="sr-only">Buscar un lugar</label>
-            <input id="home-search" name="q" placeholder="Nombre o dirección..." className="min-w-52 flex-1 rounded-lg border border-gray-300 px-4 py-3" />
-            <button type="submit" className="rounded-lg bg-gray-900 px-5 py-3 font-semibold text-white">Buscar</button>
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "pin" ? (
+        <>
+          <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </>
+      ) : kind === "beer" ? (
+        <>
+          <path d="M5 7h12v14H5zM17 9h2a3 3 0 0 1 0 6h-2M8 10v7m5-7v7M5 7a3 3 0 0 1 1-6 3 3 0 0 1 5 0 3 3 0 0 1 5 0 3 3 0 0 1 1 6" />
+        </>
+      ) : kind === "search" ? (
+        <>
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" />
+        </>
+      ) : (
+        <>
+          <path d="M4 12h16m-6-6 6 6-6 6" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+export default async function Home() {
+  const [venues, ready] = await Promise.all([
+    listPublicVenues(),
+    venueSchemaReady(),
+  ]);
+  const featured = venues.filter((v) => v.isFeatured).slice(0, 3);
+  const markers = venues
+    .filter((v) => isWithinSalimoArea(v.latitude, v.longitude))
+    .map((v) => ({
+      id: v.id,
+      name: venueDisplayName(v),
+      category: v.category || "",
+      city: v.city || "",
+      lat: v.latitude!,
+      lng: v.longitude!,
+      href: `/lugares/${v.slug}`,
+    }));
+  return (
+    <div className={`${styles.home} ${manrope.variable} ${editorial.variable}`}>
+      <PublicNav branded />
+      <main className={styles.container}>
+        <section className={styles.hero} aria-labelledby="home-title">
+          <div className={styles.intro}>
+            <p className={styles.eyebrow}>La noche tucumana</p>
+            <h1 id="home-title">
+              Salí. Explorá.
+              <br />
+              <em>Descubrí.</em>
+            </h1>
+            <p>
+              Encontrá bares, pubs y cervecerías
+              <br className={styles.desktopBreak} /> para tu próxima salida.
+            </p>
+          </div>
+          <figure className={styles.photo}>
+            <Image
+              src="/images/ambiente-amigos.jpg"
+              alt="Amigos brindando con cerveza en un bar de ambiente cálido"
+              fill
+              priority
+              sizes="(max-width: 767px) 100vw, 65vw"
+            />
+            <figcaption>Una invitación a salir · Imagen ambiental</figcaption>
+          </figure>
+          <form action="/explorar" role="search" className={styles.search}>
+            <Icon kind="search" />
+            <label htmlFor="home-search" className="sr-only">
+              Buscar por nombre o dirección
+            </label>
+            <input
+              id="home-search"
+              name="q"
+              maxLength={70}
+              placeholder="Buscar por nombre o dirección"
+            />
+            <button type="submit">
+              Buscar <Icon />
+            </button>
           </form>
-          <div className="flex flex-wrap gap-3 text-sm">
-            <Link href="/explorar?category=Bar" className="rounded-full border px-4 py-2">Bares</Link>
-            <Link href="/explorar?category=Pub" className="rounded-full border px-4 py-2">Pubs</Link>
-            <Link href="/explorar?category=Cervecer%C3%ADa" className="rounded-full border px-4 py-2">Cervecerías</Link>
+        </section>
+        <section
+          className={styles.access}
+          aria-label="Explorá por categoría o zona"
+        >
+          <Link className={styles.category} href="/explorar">
+            <Icon kind="beer" />
+            <span>
+              <strong>Bares y cervecerías</strong>
+              <small>Descubrí lugares de Tucumán.</small>
+            </span>
+            <span className={styles.round}>
+              <Icon />
+            </span>
+          </Link>
+          <Link className={styles.zones} href="#zonas">
+            <Icon kind="pin" />
+            <span>
+              <strong>Explorar por zonas</strong>
+              <small>San Miguel · Yerba Buena</small>
+            </span>
+            <span className={styles.round}>
+              <Icon />
+            </span>
+          </Link>
+          <div className={styles.chips}>
+            {["Bar", "Pub", "Cervecería"].map((category, i) => (
+              <Link
+                key={category}
+                href={`/explorar?category=${encodeURIComponent(category)}`}
+              >
+                {["Bares", "Pubs", "Cervecerías"][i]}
+              </Link>
+            ))}
           </div>
         </section>
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold">Lugares para descubrir</h2>
-            <Link href="/explorar" className="text-sm underline">Ver todos</Link>
+        <div id="zonas" className={styles.zoneLinks}>
+          <span>¿Por dónde salimos?</span>
+          {["San Miguel de Tucumán", "Yerba Buena"].map((city) => (
+            <Link
+              key={city}
+              href={`/explorar?city=${encodeURIComponent(city)}`}
+            >
+              <Icon kind="pin" />
+              {city}
+              <Icon />
+            </Link>
+          ))}
+        </div>
+        <section className={styles.mapSection} aria-labelledby="map-title">
+          <div className={styles.mapIntro}>
+            <p className={styles.eyebrow}>Explorar</p>
+            <h2 id="map-title">
+              Explorá Tucumán
+              <br />
+              <em>en el mapa.</em>
+            </h2>
+            <p>
+              Encontrá bares, pubs y cervecerías por ubicación y descubrí tu
+              próxima salida.
+            </p>
+            <Link className={styles.blueButton} href="/mapa">
+              Ver mapa interactivo <Icon />
+            </Link>
           </div>
-          {!ready ? <p className="rounded-lg border p-4 text-gray-600">Estamos preparando el catálogo. Los locales aparecerán cuando se complete su revisión.</p> : null}
-          {ready && venues.length === 0 ? <p className="rounded-lg border p-4 text-gray-600">Todavía no hay locales publicados.</p> : null}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {venues.slice(0, 6).map((venue) => <PublicVenueCard key={venue.id} venue={venue} />)}
+          <div className={styles.map}>
+            <PublicMap venues={markers} />
           </div>
+          <aside className={styles.mapContext} aria-label="Lugares en el mapa">
+            <h3>Lugares en el mapa</h3>
+            <p className={styles.mapCount}>{markers.length}</p>
+            <p>
+              {markers.length === 1
+                ? "local publicado con ubicación"
+                : "locales publicados con ubicación"}
+            </p>
+            {!markers.length ? (
+              <p className={styles.mapNote}>
+                Todavía no hay lugares disponibles para mostrar en el mapa.
+              </p>
+            ) : null}
+            <div className={styles.mapCities}>
+              <span>Explorá por zona</span>
+              <Link href="/mapa?city=San%20Miguel%20de%20Tucum%C3%A1n">
+                San Miguel de Tucumán <Icon />
+              </Link>
+              <Link href="/mapa?city=Yerba%20Buena">
+                Yerba Buena <Icon />
+              </Link>
+            </div>
+          </aside>
         </section>
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-5">
-          <p>¿Preferís elegir por ubicación? Explorá los locales geolocalizados.</p>
-          <Link href="/mapa" className="font-semibold underline">Abrir mapa</Link>
+        <section className={styles.featured} aria-labelledby="featured-title">
+          <div className={styles.sectionHead}>
+            <div>
+              <h2 id="featured-title">
+                Lugares destacados<span>.</span>
+              </h2>
+              <p>Una próxima salida empieza con un lugar.</p>
+            </div>
+            <Link href="/explorar">
+              Explorar todos <Icon />
+            </Link>
+          </div>
+          {featured.length ? (
+            <div className={styles.venueGrid}>
+              {featured.map((venue) => (
+                <PublicVenueCard key={venue.id} venue={venue} />
+              ))}
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <Icon kind="beer" />
+              <div>
+                <h3>
+                  {ready
+                    ? "Pronto, nuevos lugares para descubrir."
+                    : "Estamos preparando tu próxima salida."}
+                </h3>
+                <p>
+                  Los lugares destacados aparecerán acá cuando estén publicados
+                  y revisados.
+                </p>
+              </div>
+              <Link href="/explorar">
+                Explorar lugares <Icon />
+              </Link>
+            </div>
+          )}
+        </section>
+        <section className={styles.cta}>
+          <div className={styles.ctaPhoto} aria-hidden="true" />
+          <div>
+            <h2>¿Ya tenés plan para hoy?</h2>
+            <p>Entrá a SALIMO. y encontrá dónde salir en Tucumán.</p>
+          </div>
+          <Link className={styles.coralButton} href="/explorar">
+            Explorar lugares <Icon />
+          </Link>
         </section>
       </main>
-      <footer className="mx-auto max-w-6xl px-5 pb-8 text-sm text-gray-500"><Link href="/fuentes" className="underline">Datos y atribuciones</Link></footer>
-    </>
+      <footer className={styles.footer}>
+        <Link className={styles.logo} href="/">
+          SALIMO<span>.</span>
+        </Link>
+        <p>Bares, pubs y cervecerías de Tucumán.</p>
+        <Link href="/fuentes">Datos y atribuciones</Link>
+        <a href="https://www.pexels.com/photo/friends-clinking-in-bar-5858080/">
+          Foto ambiental: Pavel Danilyuk / Pexels
+        </a>
+      </footer>
+    </div>
   );
 }

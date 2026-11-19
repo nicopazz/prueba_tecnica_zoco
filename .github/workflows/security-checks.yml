@@ -42,8 +42,13 @@ jobs:
       - run: npm run lint
       - run: npm run test:security
       - run: node --test tests/map-assets.test.mjs tests/venue-coordinates.test.mjs
-      - run: npm run build
       - run: npx prisma migrate deploy
+      - run: npm run build
+      - run: npx tsc --noEmit
+      - name: Test admin collections and dashboard against isolated PostgreSQL
+        env:
+          SALIMO_TEST_LOCAL_POSTGRES: '1'
+        run: node --experimental-strip-types --test tests/admin-collections.test.mjs tests/admin-locales.test.mjs tests/dashboard.test.mjs tests/dashboard-postgres.test.mjs
       - name: Test public pages and admin with isolated PostgreSQL
         run: |
           npm run start > /tmp/salimo-next.log 2>&1 &
