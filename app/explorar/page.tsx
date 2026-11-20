@@ -41,7 +41,7 @@ export default async function Explore({ searchParams }: Props) {
             Buena.
           </p>
         </div>
-        <form action="/explorar" role="search" className="public-filters">
+        <form action="/explorar" role="search" id="filtros" className="public-filters">
           <label>
             Buscar
             <input

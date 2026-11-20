@@ -3,11 +3,12 @@ import Image from "next/image";
 import localFont from "next/font/local";
 import PublicNav from "./components/PublicNav";
 import PublicVenueCard from "./components/PublicVenueCard";
-import PublicMap from "./components/PublicMap";
+import HomeMap from "./components/HomeMap";
 import {
   listPublicVenues,
   venueSchemaReady,
   venueDisplayName,
+  validCategories,
 } from "@/lib/public-venues";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import styles from "./home.module.css";
@@ -84,6 +85,7 @@ export default async function Home() {
       lat: v.latitude!,
       lng: v.longitude!,
       href: `/lugares/${v.slug}`,
+      photo: v.images[0] ? { url: v.images[0].imageUrl, alt: v.images[0].alt || venueDisplayName(v), attribution: v.images[0].attribution } : null,
     }));
   return (
     <div className={`${styles.home} ${manrope.variable} ${editorial.variable}`}>
@@ -115,13 +117,13 @@ export default async function Home() {
           <form action="/explorar" role="search" className={styles.search}>
             <Icon kind="search" />
             <label htmlFor="home-search" className="sr-only">
-              Buscar por nombre o dirección
+              Buscar por nombre o zona
             </label>
             <input
               id="home-search"
               name="q"
               maxLength={70}
-              placeholder="Buscar por nombre o dirección"
+              placeholder="Buscar por nombre o zona"
             />
             <button type="submit">
               Buscar <Icon />
@@ -142,7 +144,7 @@ export default async function Home() {
               <Icon />
             </span>
           </Link>
-          <Link className={styles.zones} href="#zonas">
+          <Link className={styles.zones} href="/explorar#filtros">
             <Icon kind="pin" />
             <span>
               <strong>Explorar por zonas</strong>
@@ -193,7 +195,7 @@ export default async function Home() {
             </Link>
           </div>
           <div className={styles.map}>
-            <PublicMap venues={markers} />
+            <HomeMap venues={markers} categories={[...validCategories]} />
           </div>
           <aside className={styles.mapContext} aria-label="Lugares en el mapa">
             <h3>Lugares en el mapa</h3>

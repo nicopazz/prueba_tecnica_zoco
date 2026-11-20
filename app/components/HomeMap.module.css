@@ -1,0 +1,28 @@
+.discovery { position: relative; }
+.controls, .selection { display: none; }
+@media (max-width: 767px) {
+  .discovery { isolation: isolate; }
+  .controls { position: absolute; top: 0; left: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; pointer-events: none; }
+  .controls > * { pointer-events: auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--salimo-surface); border-radius: 24px; min-height: 44px; padding: 0 12px; font-size: 12px; font-weight: 700; box-shadow: 0 3px 8px #10284112; }
+  .controls svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .controls .mapLink { background: var(--salimo-blue-deep); color: white; }
+  .controls label { padding-right: 8px; min-width: 0; }
+  .controls select { width: 66px; min-width: 0; height: 44px; background: transparent; cursor: pointer; }
+  .selection { display: block; position: absolute; left: 10px; right: 10px; bottom: 27px; z-index: 2; }
+  .venue { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--salimo-surface); box-shadow: var(--salimo-shadow-card); border-radius: 16px; min-height: 72px; }
+  .noPhoto { display: grid; place-items: center; background: var(--salimo-peach); color: var(--salimo-coral-deep); width: 66px; height: 58px; border-radius: 10px; flex-shrink: 0; }
+  .thumbnail { width: 66px; height: 58px; flex-shrink: 0; overflow: hidden; border-radius: 10px; }
+  .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+  .venueText { min-width: 0; display: grid; gap: 2px; }
+  .venueText strong { font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .venueText small { font-size: 11px; color: var(--salimo-muted); }
+  .arrow { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; margin-left: auto; color: var(--salimo-blue-deep); background: var(--salimo-bg); border-radius: 50%; }
+  .arrow svg { width: 19px; }
+  .empty { background: var(--salimo-surface); padding: 12px; border-radius: 14px; font-size: 13px; line-height: 1.4; }
+  .discovery :global(.leaflet-top) { top: 60px; }
+  .discovery :global(.leaflet-left) { left: auto; right: 10px; }
+  .discovery :global(.leaflet-control-zoom) { border: 0; box-shadow: var(--salimo-shadow-card); }
+  .discovery :global(.leaflet-control-zoom a) { width: 36px; height: 36px; line-height: 36px; }
+  .discovery :global(.public-map-caption) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .discovery :global(.public-map-status) { position: absolute; top: 64px; left: 12px; right: 55px; z-index: 3; background: var(--salimo-surface); padding: 8px; border-radius: 8px; font-size: 12px; }
+}

@@ -805,3 +805,20 @@ textarea {
     animation: none;
   }
 }
+
+@media (max-width: 767px) {
+  .public-page { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .public-page .public-container { padding-top: 16px; }
+  .public-page .public-page-heading h1, .public-page .detail-heading h1, .public-page .sources-page h1 { font-size: clamp(32px, 10vw, 42px); overflow-wrap: anywhere; }
+  .public-page .public-page-heading > p:last-child { font-size: 14px; }
+  .public-page .public-filters { border-radius: 18px; scroll-margin-top: 16px; }
+  .public-page .public-filters :is(input, select) { font-size: 16px; }
+  .public-page .public-footer nav a { min-height: 44px; display: inline-flex; align-items: center; }
+  .public-page .detail-panel dd { overflow-wrap: anywhere; }
+  .public-page .detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .public-page :is(.detail-panel, .public-venue-card, .map-item) { min-width: 0; overflow-wrap: anywhere; }
+  .public-page .public-venue-card { overflow: hidden; }
+  .public-map-pin::before { content: ""; position: absolute; width: 24px; height: 24px; top: 2px; left: 1px; background: var(--salimo-coral); border: 2px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 6px #10284126; }
+  .public-map-pin::after { content: ""; position: absolute; width: 7px; height: 7px; top: 10px; left: 10px; border: 1.5px solid white; border-radius: 50%; }
+  .public-page, .public-page main { min-width: 0; }
+}

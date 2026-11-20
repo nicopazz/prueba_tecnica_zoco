@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MobileNavigation, { MobileMenu } from "./MobileNavigation";
 import styles from "./PublicNav.module.css";
 
 export default function PublicNav({
@@ -10,6 +11,7 @@ export default function PublicNav({
 }) {
   if (branded)
     return (
+      <>
       <header className={styles.header}>
         <nav className={styles.nav} aria-label="Navegación principal">
           <Link href="/" className={styles.logo} aria-label="SALIMO. Inicio">
@@ -39,8 +41,11 @@ export default function PublicNav({
             </Link>
           </div>
           <span className={styles.location}>Tucumán, Argentina</span>
+          <MobileMenu />
         </nav>
       </header>
+      <MobileNavigation />
+      </>
     );
   return (
     <header className="border-b border-gray-200 bg-white">

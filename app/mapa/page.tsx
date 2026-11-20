@@ -1,6 +1,9 @@
 import Link from "next/link";
+import PublicIcon from "../components/PublicIcon";
+import "./map.css";
 import PublicNav from "../components/PublicNav";
 import PublicFooter from "../components/PublicFooter";
+import MapFiltersPanel from "../components/MapFiltersPanel";
 import PublicMap from "../components/PublicMap";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import {
@@ -42,7 +45,7 @@ export default async function VenueMap({ searchParams }: Props) {
     Object.entries(filters).filter(([, value]) => value),
   );
   return (
-    <div className="public-page">
+    <div className="public-page map-page">
       <PublicNav branded active="mapa" />
       <main className="public-container">
         <div className="public-page-heading">
@@ -52,9 +55,10 @@ export default async function VenueMap({ searchParams }: Props) {
           </h1>
           <p>Encontrá lugares publicados con ubicación disponible.</p>
         </div>
-        <form action="/mapa" role="search" className="public-filters">
-          <label>
-            Buscar
+        <form action="/mapa" role="search" id="filtros" className="public-filters map-filters">
+          <label className="map-search-field">
+            <span>Buscar</span>
+            <PublicIcon name="search" />
             <input
               name="q"
               defaultValue={filters.q}
@@ -62,6 +66,8 @@ export default async function VenueMap({ searchParams }: Props) {
               placeholder="Nombre o dirección"
             />
           </label>
+          <button type="submit" className="map-search-submit" aria-label="Buscar en el mapa">Buscar</button>
+          <MapFiltersPanel count={[filters.city, filters.category].filter(Boolean).length}>
           <label>
             Localidad
             <select name="city" defaultValue={filters.city}>
@@ -90,6 +96,7 @@ export default async function VenueMap({ searchParams }: Props) {
           <Link href="/mapa" className="public-quiet-link">
             Limpiar
           </Link>
+          </MapFiltersPanel>
         </form>
         <div className="map-layout">
           <section className="map-canvas" aria-label="Mapa de lugares">

@@ -84,3 +84,11 @@
     display: none;
   }
 }
+
+/* The public desktop header retains its existing layout. */
+@media (max-width: 767px) {
+  .header { position: relative; background: transparent; border: 0; }
+  .nav { min-height: 64px; padding: 10px 24px; flex-wrap: nowrap; gap: 12px; }
+  .logo { font-size: 28px; }
+  .links, .location { display: none; }
+}
