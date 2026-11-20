@@ -41,7 +41,15 @@ export const publicVenueSelect = {
   isFeatured: true,
   images: {
     orderBy: { sortOrder: "asc" as const },
-    select: { id: true, imageUrl: true, alt: true, attribution: true, license: true },
+    select: {
+      id: true,
+      imageUrl: true,
+      publicId: true,
+      alt: true,
+      sourceUrl: true,
+      attribution: true,
+      license: true,
+    },
     take: 8,
   },
 } as const;

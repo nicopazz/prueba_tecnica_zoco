@@ -57,7 +57,9 @@ export default async function EditVenue({ params, searchParams }: Props) {
             select: {
               id: true,
               imageUrl: true,
+              publicId: true,
               alt: true,
+              sourceUrl: true,
               attribution: true,
               license: true,
             },

@@ -18,7 +18,7 @@ SALIMO. es un proyecto personal (hobby) para descubrir bares, pubs y cervecería
 
 **Pendiente de configuración / lanzamiento:**
 - Revisar y publicar los establecimientos existentes; completar información confiable.
-- Configurar un almacenamiento gratuito de fotos (Cloudinary). Por ahora se admiten enlaces HTTPS a fotos autorizadas.
+- Configurar las credenciales de Cloudinary para habilitar las subidas desde el administrador. También se admiten enlaces HTTPS a fotos autorizadas.
 
 ## Tecnología
 
@@ -48,7 +48,13 @@ La migración solo debe ejecutarse sobre una **base de desarrollo propia o aisla
 
 ## Variables principales
 
-`DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SYNC_API_TOKEN`, `CRON_SECRET`, `OVERPASS_CONTACT`. Opcionales: `GEMINI_API_KEY`, `GEMINI_MODEL`, `SYNC_API_URL`, `SYNC_CRON`, `SYNC_TIMEZONE`.
+`DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SYNC_API_TOKEN`, `CRON_SECRET`, `OVERPASS_CONTACT`. Para subir fotos, configurar también `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`. Opcionales: `GEMINI_API_KEY`, `GEMINI_MODEL`, `SYNC_API_URL`, `SYNC_CRON`, `SYNC_TIMEZONE`.
+
+### Fotografías con Cloudinary
+
+Las subidas se procesan en el servidor desde `/admin/locales`; las credenciales nunca se envían al navegador. Obtené el Cloud name, API Key y API Secret desde el panel de Cloudinary y guardalos como las tres variables anteriores en `.env.local` para desarrollo o en las variables de entorno del entorno de Vercel que corresponda. No uses el prefijo `NEXT_PUBLIC_` ni compartas el API Secret. `.env.local` está excluido de Git.
+
+Se aceptan JPEG, PNG y WebP de hasta 4 MB por archivo y un máximo de cinco fotos por establecimiento. Cada foto requiere origen, crédito, licencia o permiso y confirmación de autorización. Las imágenes agregadas previamente mediante URL HTTPS siguen siendo compatibles y no se eliminan al subir nuevas fotos.
 
 En Preview las escrituras se bloquean por defecto con `ALLOW_PREVIEW_WRITES` salvo que la base esté separada y se habilite expresamente.
 

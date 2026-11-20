@@ -1,15 +1,30 @@
 import Link from "next/link";
 import type { PublicVenue } from "@/lib/public-venues";
 import { venueDisplayName } from "@/lib/public-venues";
+import { cloudinaryImageSrcSet, cloudinaryImageUrl } from "@/lib/cloudinary-image-url";
 
 export default function PublicVenueCard({ venue }: { venue: PublicVenue }) {
   const firstImage = venue.images[0];
   return (
     <article className="public-venue-card overflow-hidden rounded-xl border border-gray-200 bg-white">
       {firstImage ? (
-        // Se usan imágenes autorizadas; Next Image remoto requiere dominios configurados.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={firstImage.imageUrl} alt={firstImage.alt || venueDisplayName(venue)} loading="lazy" className="h-40 w-full object-cover" />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={cloudinaryImageUrl(firstImage.imageUrl, firstImage.publicId, 640)}
+            srcSet={cloudinaryImageSrcSet(firstImage.imageUrl, firstImage.publicId)}
+            sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw"
+            alt={firstImage.alt || venueDisplayName(venue)}
+            loading="lazy"
+            decoding="async"
+            className="h-40 w-full object-cover"
+          />
+          {firstImage.attribution ? (
+            <p className="px-4 pt-1 text-xs text-gray-500">
+              Foto: {firstImage.attribution}
+            </p>
+          ) : null}
+        </>
       ) : (
         <div className="flex h-24 items-center justify-center bg-gray-100 text-sm text-gray-500">Sin fotografía</div>
       )}

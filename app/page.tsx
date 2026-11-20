@@ -85,7 +85,12 @@ export default async function Home() {
       lat: v.latitude!,
       lng: v.longitude!,
       href: `/lugares/${v.slug}`,
-      photo: v.images[0] ? { url: v.images[0].imageUrl, alt: v.images[0].alt || venueDisplayName(v), attribution: v.images[0].attribution } : null,
+      photo: v.images[0] ? {
+        url: v.images[0].imageUrl,
+        publicId: v.images[0].publicId,
+        alt: v.images[0].alt || venueDisplayName(v),
+        attribution: v.images[0].attribution,
+      } : null,
     }));
   return (
     <div className={`${styles.home} ${manrope.variable} ${editorial.variable}`}>

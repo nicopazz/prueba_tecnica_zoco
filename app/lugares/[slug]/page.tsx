@@ -4,6 +4,7 @@ import PublicNav from "../../components/PublicNav";
 import PublicFooter from "../../components/PublicFooter";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
 import { getPublicVenue, venueDisplayName } from "@/lib/public-venues";
+import { cloudinaryImageSrcSet, cloudinaryImageUrl } from "@/lib/cloudinary-image-url";
 
 type Props = { params: Promise<{ slug: string }> };
 export const dynamic = "force-dynamic";
@@ -36,9 +37,12 @@ export default async function VenueDetail({ params }: Props) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.imageUrl}
+                  src={cloudinaryImageUrl(img.imageUrl, img.publicId, i === 0 ? 1280 : 960)}
+                  srcSet={cloudinaryImageSrcSet(img.imageUrl, img.publicId)}
+                  sizes="(max-width: 767px) 100vw, 70vw"
                   alt={img.alt || name}
                   loading={i === 0 ? "eager" : "lazy"}
+                  decoding="async"
                 />
                 {img.attribution ? (
                   <figcaption>{img.attribution}</figcaption>

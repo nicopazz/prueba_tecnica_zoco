@@ -1,10 +1,12 @@
 "use client";
 
-import { type FormEvent, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useListFeedback } from "@/app/admin/locales/list-feedback";
 import AdminLocationPicker from "./AdminLocationPicker";
 import { isWithinSalimoArea } from "@/lib/venue-coordinates";
+import { cloudinaryImageUrl } from "@/lib/cloudinary-image-url";
+import { ACCEPTED_VENUE_IMAGE_TYPES, MAX_VENUE_IMAGE_BYTES, MAX_VENUE_IMAGES } from "@/lib/venue-image-constants";
 
 type EditableVenue = {
   id: string;
@@ -29,7 +31,9 @@ type EditableVenue = {
   images?: Array<{
     id: string;
     imageUrl: string;
+    publicId: string | null;
     alt: string | null;
+    sourceUrl: string | null;
     attribution: string | null;
     license: string | null;
   }>;
@@ -56,6 +60,11 @@ export default function AdminVenueEditor({
   const [imageError, setImageError] = useState("");
   const [imageStatus, setImageStatus] = useState("");
   const [imageSaving, setImageSaving] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; previewUrl: string }>>([]);
+  const filePreviewUrls = useRef<string[]>([]);
+  useEffect(() => () => {
+    filePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
   const [publicationStatus, setPublicationStatus] = useState(
     venue?.publicationStatus || "DRAFT",
   );
@@ -79,6 +88,32 @@ export default function AdminVenueEditor({
     venue?.latitude != null &&
     venue.longitude != null &&
     !isWithinSalimoArea(venue.latitude, venue.longitude);
+
+  function replaceSelectedFiles(files: File[]) {
+    filePreviewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    const next = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    filePreviewUrls.current = next.map(({ previewUrl }) => previewUrl);
+    setSelectedFiles(next);
+  }
+
+  function selectImageFiles(files: File[]) {
+    setImageError("");
+    setImageStatus("");
+    const unsupported = files.find((file) =>
+      !ACCEPTED_VENUE_IMAGE_TYPES.some((type) => type === file.type) ||
+      file.size > MAX_VENUE_IMAGE_BYTES,
+    );
+    if (unsupported) {
+      setImageError("Usá archivos JPEG, PNG o WebP de hasta 4 MB cada uno.");
+      replaceSelectedFiles([]);
+      return;
+    }
+    const available = Math.max(0, MAX_VENUE_IMAGES - (venue?.images?.length || 0));
+    if (files.length > available) {
+      setImageError(`Podés agregar hasta ${available} fotografía${available === 1 ? "" : "s"} más.`);
+    }
+    replaceSelectedFiles(files.slice(0, available));
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,31 +204,80 @@ export default function AdminVenueEditor({
     event.preventDefault();
     if (!venue || !schemaReady || imageSaving) return;
     const imageForm = event.currentTarget;
+    const form = new FormData(imageForm);
+    const val = (field: string) => String(form.get(field) || "").trim();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const mode = submitter instanceof HTMLButtonElement ? submitter.value : "upload";
     setImageSaving(true);
     setImageError("");
     setImageStatus("");
-    const form = new FormData(imageForm);
-    const val = (field: string) => String(form.get(field) || "").trim();
     try {
-      const res = await fetch(`/api/admin/venues/${venue.id}/images`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: val("imageUrl"),
-          sourceUrl: val("sourceUrl"),
-          attribution: val("attribution"),
-          license: val("license"),
-          alt: val("alt"),
-        }),
-      });
-      const result = await res.json().catch(() => null);
-      if (!res.ok || !result?.success)
-        throw new Error(result?.error || "No se pudo agregar la fotografía.");
-      setImageStatus("Fotografía agregada.");
+      if (mode === "url") {
+        const res = await fetch(`/api/admin/venues/${venue.id}/images`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: val("imageUrl"),
+            sourceUrl: val("sourceUrl"),
+            attribution: val("attribution"),
+            license: val("license"),
+            alt: val("alt"),
+            authorizationConfirmed: form.get("authorizationConfirmed") === "on",
+          }),
+        });
+        const result = await res.json().catch(() => null);
+        if (!res.ok || !result?.success)
+          throw new Error(result?.error || "No se pudo agregar la fotografía.");
+        setImageStatus("Fotografía agregada.");
+        imageForm.reset();
+        replaceSelectedFiles([]);
+        router.refresh();
+        return;
+      }
+
+      const files = selectedFiles.map(({ file }) => file);
+      if (!files.length) throw new Error("Seleccioná al menos una fotografía.");
+      const existingCount = venue.images?.length || 0;
+      if (existingCount + files.length > MAX_VENUE_IMAGES) {
+        throw new Error("La cantidad seleccionada supera el límite de cinco fotografías.");
+      }
+
+      let uploadedCount = 0;
+      for (const file of files) {
+        const uploadForm = new FormData();
+        uploadForm.set("file", file, file.name);
+        uploadForm.set("sourceUrl", val("sourceUrl"));
+        uploadForm.set("attribution", val("attribution"));
+        uploadForm.set("license", val("license"));
+        uploadForm.set("alt", val("alt"));
+        uploadForm.set("authorizationConfirmed", String(form.get("authorizationConfirmed") === "on"));
+        setImageStatus(`Subiendo ${uploadedCount + 1} de ${files.length}…`);
+        try {
+          const res = await fetch(`/api/admin/venues/${venue.id}/images`, {
+            method: "POST",
+            body: uploadForm,
+          });
+          const result = await res.json().catch(() => null);
+          if (!res.ok || !result?.success)
+            throw new Error(result?.error || "No se pudo subir la fotografía.");
+          uploadedCount++;
+        } catch (uploadError) {
+          if (uploadedCount > 0) {
+            replaceSelectedFiles(files.slice(uploadedCount));
+            const fileInput = imageForm.querySelector<HTMLInputElement>('input[name="files"]');
+            if (fileInput) fileInput.value = "";
+            setImageStatus(`Se subieron ${uploadedCount} de ${files.length} fotografías.`);
+            router.refresh();
+          }
+          throw uploadError;
+        }
+      }
+      setImageStatus(`Se subrieron ${uploadedCount} fotografía${uploadedCount === 1 ? "" : "s"}.`);
       imageForm.reset();
+      replaceSelectedFiles([]);
       router.refresh();
     } catch (e) {
-      setImageError(e instanceof Error ? e.message : "Error");
+      setImageError(e instanceof Error ? e.message : "No se pudo agregar la fotografía.");
     } finally {
       setImageSaving(false);
     }
@@ -208,11 +292,13 @@ export default function AdminVenueEditor({
       const response = await fetch(`/api/admin/venues/${venue.id}/images/${id}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("No se pudo quitar la fotografía.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success)
+        throw new Error(result?.error || "No se pudo quitar la fotografía.");
       setImageStatus("Fotografía quitada.");
       router.refresh();
-    } catch {
-      setImageError("No se pudo quitar la fotografía. Volvé a intentar.");
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "No se pudo quitar la fotografía.");
     } finally {
       setImageSaving(false);
     }
@@ -444,18 +530,28 @@ export default function AdminVenueEditor({
         <section className="admin-form-panel">
           <h2 className="admin-form-heading">Fotografías autorizadas</h2>
           <p className="admin-venue-meta">
-            Agregá una imagen mediante su URL HTTPS e indicá el origen y el permiso de uso. El texto alternativo es opcional.
+            Subí JPEG, PNG o WebP de hasta 4 MB cada una, o conservá el registro mediante URL HTTPS. Indicá el origen, el crédito y la licencia o autorización.
           </p>
           {!venue.images?.length ? <p className="admin-venue-meta">Todavía no hay fotografías.</p> : null}
+          <p className="admin-venue-meta">
+            {venue.images?.length || 0} de {MAX_VENUE_IMAGES} fotografías registradas.
+          </p>
           {venue.images?.map((image) => (
             <div
               key={image.id}
               className="admin-image-entry"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cloudinaryImageUrl(image.imageUrl, image.publicId, 240)}
+                alt={image.alt || "Fotografía del establecimiento"}
+                loading="lazy"
+                className="admin-image-preview"
+              />
               <div>
-                <p>{image.alt || image.imageUrl}</p>
+                <p>{image.alt || "Sin texto alternativo"}</p>
                 <p className="admin-venue-meta">
-                  {[image.attribution, image.license].filter(Boolean).join(" · ")}
+                  {[image.attribution, image.license, image.sourceUrl].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <button
@@ -470,9 +566,24 @@ export default function AdminVenueEditor({
           ))}
           <form onSubmit={addImage} aria-busy={imageSaving}>
             <fieldset disabled={imageSaving} className="admin-image-fields">
+              <label className="admin-image-file">
+                Subir fotografías desde tu dispositivo
+                <input
+                  name="files"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  multiple
+                  disabled={(venue.images?.length || 0) >= MAX_VENUE_IMAGES}
+                  onChange={(event) => {
+                    selectImageFiles(Array.from(event.currentTarget.files || []));
+                    event.currentTarget.value = "";
+                  }}
+                  className={input}
+                />
+              </label>
               <label>
-                URL HTTPS de la imagen <span className="admin-field-note">(obligatoria)</span>
-                <input name="imageUrl" type="url" required className={input} />
+                O agregá mediante URL HTTPS
+                <input name="imageUrl" type="url" className={input} />
               </label>
               <label>
                 Página de origen o autorización <span className="admin-field-note">(obligatoria)</span>
@@ -489,14 +600,38 @@ export default function AdminVenueEditor({
               <label>
                 Texto alternativo <input name="alt" className={input} />
               </label>
+              <label className="admin-image-authorization">
+                <input name="authorizationConfirmed" type="checkbox" required />
+                Confirmo que cuento con autorización para usar estas fotografías.
+              </label>
             </fieldset>
+            {selectedFiles.length ? (
+              <div className="admin-image-previews" aria-label="Vista previa de fotografías seleccionadas">
+                {selectedFiles.map(({ file, previewUrl }) => (
+                  <div key={`${file.name}-${file.lastModified}-${file.size}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl} alt={`Vista previa: ${file.name}`} />
+                    <span>{file.name} · {(file.size / (1024 * 1024)).toFixed(1)} MB</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {imageError ? <p role="alert" className="admin-form-error">{imageError}</p> : null}
             <button
               type="submit"
-              disabled={imageSaving}
+              value="upload"
+              disabled={imageSaving || selectedFiles.length === 0 || (venue.images?.length || 0) >= MAX_VENUE_IMAGES}
+              className="admin-action-primary"
+            >
+              {imageSaving ? "Subiendo…" : "Subir fotografías"}
+            </button>
+            <button
+              type="submit"
+              value="url"
+              disabled={imageSaving || (venue.images?.length || 0) >= MAX_VENUE_IMAGES}
               className="admin-action-secondary"
             >
-              Agregar fotografía
+              Agregar por URL HTTPS
             </button>
             <span role="status" className="admin-photo-feedback">{imageSaving ? "Actualizando fotografías…" : imageStatus}</span>
           </form>

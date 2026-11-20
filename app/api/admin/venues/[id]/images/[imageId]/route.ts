@@ -1,15 +1,13 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyAdminAuthorization, isUnsafeCrossOrigin, previewWritesBlocked } from "@/lib/security";
-import { venueSchemaReady } from "@/lib/public-venues";
+import { revalidatePath } from "next/cache";
+import { venueImageHandlers } from "@/lib/admin-venue-image-service";
+
 type Context = { params: Promise<{ id: string; imageId: string }> };
+
+export const runtime = "nodejs";
+
 export async function DELETE(request: Request, { params }: Context) {
-  if (!verifyAdminAuthorization(request.headers.get("authorization"))) return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-  if (previewWritesBlocked() || isUnsafeCrossOrigin(request)) return NextResponse.json({ success: false, error: "Escritura no permitida" }, { status: 403 });
-  if (!(await venueSchemaReady())) return NextResponse.json({ success: false, error: "Migración pendiente" }, { status: 503 });
   const { id, imageId } = await params;
-  const result = await prisma.venueImage.deleteMany({ where: { id: imageId, venueId: id } });
-  return result.count === 1
-    ? NextResponse.json({ success: true })
-    : NextResponse.json({ success: false, error: "Imagen no encontrada" }, { status: 404 });
+  const response = await venueImageHandlers.DELETE(request, id, imageId);
+  if (response.status === 200) revalidatePath("/");
+  return response;
 }

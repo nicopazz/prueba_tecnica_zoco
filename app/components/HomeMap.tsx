@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PublicMap, { type MapVenue } from "./PublicMap";
 import PublicIcon from "./PublicIcon";
 import styles from "./HomeMap.module.css";
+import { cloudinaryImageSrcSet, cloudinaryImageUrl } from "@/lib/cloudinary-image-url";
 
-type HomeMapVenue = MapVenue & { photo?: { url: string; alt: string; attribution: string | null } | null };
+type HomeMapVenue = MapVenue & { photo?: { url: string; publicId: string | null; alt: string; attribution: string | null } | null };
 
 export default function HomeMap({ venues, categories }: { venues: HomeMapVenue[]; categories: string[] }) {
   const [category, setCategory] = useState("");
@@ -52,7 +53,13 @@ export default function HomeMap({ venues, categories }: { venues: HomeMapVenue[]
         <Link href={selected.href} className={styles.venue}>
           {selected.photo ? <span className={styles.thumbnail}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={selected.photo.url} alt={selected.photo.alt} />
+            <img
+              src={cloudinaryImageUrl(selected.photo.url, selected.photo.publicId, 320)}
+              srcSet={cloudinaryImageSrcSet(selected.photo.url, selected.photo.publicId)}
+              sizes="66px"
+              alt={selected.photo.alt}
+              loading="lazy"
+            />
           </span> : <span className={styles.noPhoto} aria-label="Sin fotografía verificada"><PublicIcon name="pin" /></span>}
           <span className={styles.venueText}>
             <strong>{selected.name}</strong>
