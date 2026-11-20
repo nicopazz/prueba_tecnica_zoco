@@ -9,14 +9,18 @@
   .controls label { padding-right: 8px; min-width: 0; }
   .controls select { width: 66px; min-width: 0; height: 44px; background: transparent; cursor: pointer; }
   .selection { display: block; position: absolute; left: 10px; right: 10px; bottom: 27px; z-index: 2; }
-  .venue { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--salimo-surface); box-shadow: var(--salimo-shadow-card); border-radius: 16px; min-height: 72px; }
+  .venueCard { position: relative; }
+  .venue { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 84px 8px 8px; background: var(--salimo-surface); box-shadow: var(--salimo-shadow-card); border-radius: 16px; min-height: 72px; }
+  .close { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--salimo-bg); color: var(--salimo-ink); cursor: pointer; }
+  .close svg { width: 18px; height: 18px; color: var(--salimo-coral-deep); }
+  .close:focus-visible { outline: 3px solid var(--salimo-blue); outline-offset: 2px; }
   .noPhoto { display: grid; place-items: center; background: var(--salimo-peach); color: var(--salimo-coral-deep); width: 66px; height: 58px; border-radius: 10px; flex-shrink: 0; }
   .thumbnail { width: 66px; height: 58px; flex-shrink: 0; overflow: hidden; border-radius: 10px; }
   .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
   .venueText { min-width: 0; display: grid; gap: 2px; }
   .venueText strong { font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .venueText small { font-size: 11px; color: var(--salimo-muted); }
-  .arrow { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; margin-left: auto; color: var(--salimo-blue-deep); background: var(--salimo-bg); border-radius: 50%; }
+  .arrow { position: absolute; top: 50%; right: 48px; display: grid; place-items: center; width: 32px; height: 32px; transform: translateY(-50%); flex-shrink: 0; color: var(--salimo-blue-deep); background: var(--salimo-bg); border-radius: 50%; }
   .arrow svg { width: 19px; }
   .empty { background: var(--salimo-surface); padding: 12px; border-radius: 14px; font-size: 13px; line-height: 1.4; }
   .discovery :global(.leaflet-top) { top: 60px; }

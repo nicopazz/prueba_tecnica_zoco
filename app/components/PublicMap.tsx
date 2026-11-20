@@ -6,24 +6,26 @@ export type MapVenue = { id: string; name: string; category: string; city: strin
 type LeafletMap = {
   setView(center: [number, number], zoom: number): LeafletMap;
   fitBounds(bounds: Array<[number, number]>, options: { padding: [number, number]; maxZoom?: number }): void;
+  on(event: string, callback: () => void): LeafletMap;
   remove(): void;
 };
 type LeafletMarker = {
   addTo(map: LeafletMap): LeafletMarker;
   bindPopup(content: HTMLElement): LeafletMarker;
+  getElement(): HTMLElement | undefined;
   on(event: string, callback: () => void): LeafletMarker;
 };
 type LeafletFactory = {
   divIcon(options: { className: string; iconSize: [number, number] }): unknown;
   map(element: HTMLElement, options?: { scrollWheelZoom: boolean; zoomAnimation: boolean; fadeAnimation: boolean }): LeafletMap;
   tileLayer(url: string, options: { maxZoom: number; attribution: string }): { addTo(map: LeafletMap): void; on(event: string, callback: () => void): void };
-  marker(coordinates: [number, number], options?: { title: string; alt: string; icon?: unknown }): LeafletMarker;
+  marker(coordinates: [number, number], options?: { title: string; alt: string; keyboard?: boolean; bubblingMouseEvents?: boolean; icon?: unknown }): LeafletMarker;
 };
 
 const SCRIPT_ID = "salimo-leaflet-js";
 const STYLES_ID = "salimo-leaflet-css";
 
-export default function PublicMap({ venues, compact = false, discovery = false, onSelectVenue }: { venues: MapVenue[]; compact?: boolean; discovery?: boolean; onSelectVenue?: (id: string) => void }) {
+export default function PublicMap({ venues, compact = false, discovery = false, onSelectVenue }: { venues: MapVenue[]; compact?: boolean; discovery?: boolean; onSelectVenue?: (id: string | null) => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const [error, setError] = useState("");
@@ -53,6 +55,9 @@ export default function PublicMap({ venues, compact = false, discovery = false, 
         tiles.on("load", () => { if (!cancelled && !visibleTiles) setTilesUnavailable(true); });
         tiles.addTo(map);
         const mobile = mobileMedia.matches;
+        if (discovery && mobile && onSelectVenue) {
+          map.on("click", () => onSelectVenue(null));
+        }
         const dot = compact ? leaflet.divIcon({ className: "admin-map-point", iconSize: [18, 18] }) : mobile ? leaflet.divIcon({ className: "public-map-pin", iconSize: [26, 34] }) : undefined;
         const bounds: Array<[number, number]> = [];
         for (const venue of venues) {
@@ -69,9 +74,20 @@ export default function PublicMap({ venues, compact = false, discovery = false, 
           link.textContent = "Ver ficha";
           link.style.textDecoration = "underline";
           node.append(title, detail, link);
-          const marker = leaflet.marker(coords, { title: venue.name, alt: venue.name, ...(dot ? { icon: dot } : {}) }).addTo(map);
-          if (discovery && mobile && onSelectVenue) marker.on("click", () => onSelectVenue(venue.id));
-          else marker.bindPopup(node);
+          const marker = leaflet.marker(coords, { title: venue.name, alt: venue.name, keyboard: true, bubblingMouseEvents: false, ...(dot ? { icon: dot } : {}) }).addTo(map);
+          if (discovery && mobile && onSelectVenue) {
+            marker.on("click", () => onSelectVenue(venue.id));
+            const element = marker.getElement();
+            if (element) {
+              element.setAttribute("aria-label", venue.name);
+              element.addEventListener("keydown", (event) => {
+                if ((event.key === "Enter" || event.key === " ") && !event.repeat) {
+                  event.preventDefault();
+                  onSelectVenue(venue.id);
+                }
+              });
+            }
+          } else marker.bindPopup(node);
           bounds.push(coords);
         }
         if (bounds.length === 1) map.setView(bounds[0], 15);
